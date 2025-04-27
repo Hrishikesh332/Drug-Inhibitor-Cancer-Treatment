@@ -13,7 +13,7 @@ if not setting.ml_train:
 # CUDA for PyTorch
 use_cuda = cuda.is_available()
 if use_cuda:
-    device2 = device("cuda:0")
+    device2 = device("cuda")
     cuda.set_device(device2)
 else:
     device2 = device("cpu")

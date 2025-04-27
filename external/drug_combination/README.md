@@ -2,9 +2,12 @@
 
 In many patients, a tumor’s innate or acquired resistance to a given therapy will render the treatment ineffective. To increase therapeutic options and to overcome drug resistance, cancer researchers have been actively investigating drug combinations.
 
+Thsi repository was originally set up for two gpu cards, however we made it so that only one cuda device or none is allowed.
+
 ## Build environment (dependencies)
+**we changed this to fit not only to linux, but be cross platform**
 ```
-conda env create -f environment.yml
+mamba env create -f environment.yml
 ```
 
 ## Check model performance with differnt cell line features (gene dependencies, gene expression and netexpress scores)
@@ -37,7 +40,7 @@ check the logfile in the newest ```_run_*****``` folder
 ```
 pip install zenodo-get
 ```
-#### 2. Download data to src/synergy_score file
+#### 2. Download data to data/synergy_score file
 ```
 zenodo_get 10.5281/zenodo.4789936
 ```
