@@ -3,7 +3,7 @@
 In many patients, a tumor’s innate or acquired resistance to a given therapy will render the treatment ineffective. To increase therapeutic options and to overcome drug resistance, cancer researchers have been actively investigating drug combinations.
 
 Thsi repository was originally set up for two gpu cards, however we made it so that only one cuda device or none is allowed.
-
+#TODO: I also believe that there was an error in readme and in gitignore to paste the dataset into src? I pasted it into data/ it should be working i think, but we'll see.
 ## Build environment (dependencies)
 **we changed this to fit not only to linux, but be cross platform**
 ```
