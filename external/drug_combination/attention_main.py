@@ -313,8 +313,9 @@ def run():
             logger.info(
                 "Validation mse is {0}, Validation pearson correlation is {1!r}, Validation spearman correlation is {2!r}"
                     .format(np.mean(val_loss), val_pearson, val_spearman))
+        wandb.finish()
 
-
+    wandb.init(project="Drug combination alpha_fold - Testing best model",)
     ### Testing
 
     if setting.load_old_model:
@@ -387,6 +388,13 @@ def run():
             mkdir('prediction')
         save(np.concatenate((np.array(test_index_list[:sample_size]).reshape(-1,1), mean_prediction.reshape(-1, 1), mean_y.reshape(-1, 1)), axis=1),
              "prediction/prediction_" + setting.catoutput_output_type + "_testing")
+        
+        if USE_wandb:
+            wandb.log({
+                "Test Loss": test_loss,
+                "Test Pearson": test_pearson,
+                "Test Spearman": test_spearman
+            })
 
     logger.debug("Testing mse is {0}, Testing pearson correlation is {1!r}, Testing spearman correlation is {2!r}".format(np.mean(test_loss), test_pearson, test_spearman))
 
