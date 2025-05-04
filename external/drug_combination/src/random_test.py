@@ -1,5 +1,4 @@
-#!/usr/bin/env python
-
+import torch
 import numpy as np
 import pandas as pd
 import logging
@@ -8,13 +7,12 @@ from scipy.stats import pearsonr
 from sklearn.metrics import mean_squared_error
 from sklearn.preprocessing import StandardScaler
 import os
-from keras.callbacks import TensorBoard
 from time import time
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def create_drugs_profiles(raw_chemicals, genes):
 
-    #drug_profile.columns = genes['symbol']
-    # columns: drugs, index: genes
     if not setting.drug_profiles_renew and os.path.exists(setting.drug_profiles):
         drug_profile = pd.read_csv(setting.drug_profiles, index_col=0)
         return drug_profile
@@ -31,29 +29,69 @@ def create_drugs_profiles(raw_chemicals, genes):
         for target in target_list:
             target = int(target)
             if target in entrez_set:
-
                 drug_profile.loc[chem_name, target] = 1
     print(setting.drug_profiles)
     drug_profile.T.to_csv(setting.drug_profiles)
     return drug_profile.T
 
+def train_model(drug_model, X_train, Y_train, X_val, Y_val):
+    # Fetch training parameters from settings.py
+    n_epochs = setting.n_epochs
+    batch_size = setting.batch_size
+    start_lr = setting.start_lr
+    dropout = setting.dropout
+    loss_fn = torch.nn.MSELoss()  # You can replace this with any loss function from settings if needed
+    optimizer = torch.optim.Adam(drug_model.parameters(), lr=start_lr)
 
+    # Convert the data to torch tensors
+    X_train_tensor = torch.tensor(X_train, dtype=torch.float32)
+    Y_train_tensor = torch.tensor(Y_train, dtype=torch.float32)
+    X_val_tensor = torch.tensor(X_val, dtype=torch.float32)
+    Y_val_tensor = torch.tensor(Y_val, dtype=torch.float32)
+
+    # Move model to device (GPU if available)
+    drug_model.to(device)
+    X_train_tensor, Y_train_tensor = X_train_tensor.to(device), Y_train_tensor.to(device)
+    X_val_tensor, Y_val_tensor = X_val_tensor.to(device), Y_val_tensor.to(device)
+
+    # Training loop
+    for epoch in range(n_epochs):
+        drug_model.train()  # Set model to training mode
+        optimizer.zero_grad()  # Zero the gradients
+
+        # Iterate over batches
+        for i in range(0, len(X_train), batch_size):
+            # Get the current batch
+            batch_X = X_train_tensor[i:i+batch_size]
+            batch_Y = Y_train_tensor[i:i+batch_size]
+
+            # Forward pass
+            predictions = drug_model(batch_X)
+            loss = loss_fn(predictions, batch_Y)
+
+            # Backward pass
+            loss.backward()
+
+            # Optimizer step
+            optimizer.step()
+            optimizer.zero_grad()  # Zero gradients for next batch
+
+        # Validation step (after completing a full epoch)
+        drug_model.eval()  # Set model to evaluation mode
+        with torch.no_grad():  # No need to compute gradients for validation
+            val_predictions = drug_model(X_val_tensor)
+            val_loss = loss_fn(val_predictions, Y_val_tensor)
+
+        # Print the progress
+        print(f"Epoch [{epoch+1}/{n_epochs}], Loss: {loss.item():.4f}, Val Loss: {val_loss.item():.4f}")
+
+    return drug_model
 
 if __name__ == "__main__":
 
-
-    # print(simulated_drug_target, simulated_drug_target.shape)
-    # print("synergy_score filtered data amount %s" %str(len(synergy_score)))
-    # print(simulated_drug_target.shape, sel_dp.shape)
-    # print(sel_dp)
-    # print(sel_dp.shape)
-
-    # setting up nvidia GPU environment
+    # Setting up nvidia GPU environment
     if not setting.ml_train:
-        os.environ["CUDA_VISIBLE_DEVICES"] = "3"
-        # config = tf.ConfigProto()
-        # config.gpu_options.allow_growth = True
-        # set_session(tf.Session(config=config))
+        os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
     # Setting up log file
     formatter = logging.Formatter(fmt='%(asctime)s %(levelname)s %(name)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S')
@@ -76,14 +114,10 @@ if __name__ == "__main__":
     for train_index, test_index, test_index_2, evaluation_index, evaluation_index_2 in\
         my_data.DataPreprocessor.cv_train_eval_test_split_generator():
 
-    # train_index, test_index, test_index_2, evaluation_index, evaluation_index_2 = \
-    #     my_data.DataPreprocessor.reg_train_eval_test_split()
-
         logger.debug("Splitted data successfully")
         std_scaler.fit(Y[train_index])
         if setting.y_transform:
             Y = std_scaler.transform(Y) * 100
-
             best_test_index, best_test_index_2 = test_index, test_index_2
 
         if setting.ml_train:
@@ -95,31 +129,46 @@ if __name__ == "__main__":
 
         else:
 
+            # Creating and compiling the model using the new `DrugsCombModel` class
             drug_model = model.DrugsCombModel(drug_a_features_len=drug_features_len,
                                               drug_b_features_len=drug_features_len,
                                               cl_features_len=cl_features_len).get_model()
-            logger.info("model information: \n %s" % drug_model.summary())
-            logger.debug("Start training")
-            tensorboard = TensorBoard(log_dir=setting.tensorboard_log)
-            training_history = drug_model.fit(x=X[train_index], y=Y[train_index],
-                                              validation_data=(X[test_index], Y[test_index]),
-                                              epochs=setting.n_epochs,
-                                              callbacks = [tensorboard],
-                                              verbose=2)
 
+            logger.info("model information: \n %s" % drug_model)
+            logger.debug("Start training")
+
+            drug_model = train_model(
+                    drug_model,
+                    X[train_index], Y[train_index],
+                    X[test_index], Y[test_index]
+                )
 
             logger.debug("Training is done")
-            train_prediction = drug_model.predict(x=X[train_index]).reshape((-1,))
-            train_prediction = std_scaler.inverse_transform(train_prediction/100)
-            Y = std_scaler.inverse_transform(Y/100)
+            logger.debug("Start evaluation")
+            drug_model.eval()
+
+            # Disable gradient calculation for inference
+            with torch.no_grad():
+                X_train_tensor = torch.tensor(X[train_index], dtype=torch.float32).to(device)
+                train_prediction = drug_model(X_train_tensor).reshape((-1,))
+                
+            train_prediction = std_scaler.inverse_transform(train_prediction / 100)
+            Y = std_scaler.inverse_transform(Y / 100)
             train_mse = mean_squared_error(Y[train_index], train_prediction)
             train_pearson = pearsonr(Y[train_index].reshape(-1), train_prediction.reshape(-1))[0]
 
-            logger.info("training dataset: mse: %s, pearson: %s" % (str(train_mse), str(1-train_pearson**2)))
-
-            eval_prediction = drug_model.predict(x=X[evaluation_index]).reshape((-1,))
+            logger.info("training dataset: mse: %s, pearson: %s" % (str(train_mse), str(1 - train_pearson ** 2)))
+            
+            with torch.no_grad():
+                X_eval_tensor = torch.tensor(X[evaluation_index], dtype=torch.float32).to(device)
+                eval_prediction = drug_model(X_eval_tensor).reshape((-1,))
+                
             eval_prediction = std_scaler.inverse_transform(eval_prediction / 100)
-            eval_prediction_2 = drug_model.predict(x=X[evaluation_index_2]).reshape((-1,))
+            
+            with torch.no_grad():
+                X_eval2_tensor = torch.tensor(X[evaluation_index_2], dtype=torch.float32).to(device)
+                eval_prediction_2 = drug_model(X_eval2_tensor).reshape((-1,))
+            
             eval_prediction_2 = std_scaler.inverse_transform(eval_prediction_2 / 100)
             final_prediction = np.mean([eval_prediction, eval_prediction_2], axis=0)
             comparison = pd.DataFrame(
@@ -134,20 +183,31 @@ if __name__ == "__main__":
 
     best_index = 0
     for i in range(len(cv_pearsonr_scores)):
-
         if cv_pearsonr_scores[best_index] < cv_pearsonr_scores[i]:
             best_index = i
 
     best_model = cvmodels[best_index]
-
-    test_prediction = best_model.predict(x=X[best_test_index]).reshape((-1,))
-    test_prediction = std_scaler.inverse_transform(test_prediction/100)
-    test_prediction_2 = best_model.predict(x=X[best_test_index_2]).reshape((-1,))
-    test_prediction_2 = std_scaler.inverse_transform(test_prediction_2/100)
+    logger.info("Best model index: %s" % str(best_index))
+    logger.info("Best model pearson: %s" % str(cv_pearsonr_scores[best_index]))
+    logger.info("Best model mse: %s" % str(1 - cv_pearsonr_scores[best_index] ** 2))
+    
+    logger.info("Start testing")
+    best_model.eval()
+    with torch.no_grad():
+        X_test_tensor = torch.tensor(X[best_test_index], dtype=torch.float32).to(device)
+        test_prediction = best_model(X_test_tensor).reshape((-1,))
+    test_prediction = std_scaler.inverse_transform(test_prediction / 100)
+    
+    with torch.no_grad():
+        X_test2_tensor = torch.tensor(X[best_test_index_2], dtype=torch.float32).to(device)
+        test_prediction_2 = best_model(X_test2_tensor).reshape((-1,))
+        
+    test_prediction_2 = std_scaler.inverse_transform(test_prediction_2 / 100)
+    
     final_prediction = np.mean([test_prediction, test_prediction_2], axis=0)
-    comparison = pd.DataFrame({'ground_truth':Y[best_test_index].reshape(-1),'prediction':final_prediction.reshape(-1)})
+    comparison = pd.DataFrame({'ground_truth': Y[best_test_index].reshape(-1), 'prediction': final_prediction.reshape(-1)})
     comparison.to_csv("last_output_{!r}".format(int(time())) + ".csv")
     test_mse = mean_squared_error(Y[best_test_index], final_prediction)
     test_pearson = pearsonr(Y[best_test_index].reshape(-1), final_prediction.reshape(-1))[0]
 
-    logger.info("Testing dataset: mse: %s, pearson: %s" % (str(test_mse), str(1-test_pearson**2)))
+    logger.info("Testing dataset: mse: %s, pearson: %s" % (str(test_mse), str(1 - test_pearson ** 2)))

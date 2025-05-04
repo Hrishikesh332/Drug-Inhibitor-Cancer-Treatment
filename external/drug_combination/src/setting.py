@@ -13,7 +13,7 @@ propagation_method = 'random_walk'
 feature_type = 'more'
 F_repr_feature_length = 1000
 
-activation_method =["relu"]
+activation_method =['ReLU'] # ['LeakyReLU', 'Tanh']
 dropout = [0.2, 0.1, 0.1]
 start_lr = 0.00003
 lr_decay = 0.00002
