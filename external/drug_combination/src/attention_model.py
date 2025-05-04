@@ -8,7 +8,7 @@ import copy
 from src import setting
 from src import use_cuda, device2
 from src.CustomizedLinear import CustomizedLinear
-from neural_fingerprint import NeuralFingerprint
+from src.NeuralFingerPrint.neural_fingerprint import NeuralFingerprint
 from torch import device
 import pandas as pd
 
@@ -177,7 +177,7 @@ class TransposeMultiTransformersPlusLinear(TransposeMultiTransformers):
     def __init__(self, d_input_list, d_model_list, n_feature_type_list, N, heads, dropout, masks=None, linear_only = False, drugs_on_the_side = False, classifier = False):
 
         self.device1 = device('cuda') if use_cuda else device('cpu')
-        self.device2 = device('cpu') # had to change
+        self.device2 = device('cuda')  if use_cuda else device('cpu') # had to change
         super().__init__(d_input_list, d_model_list, n_feature_type_list, N, heads, dropout, masks=masks, linear_only = linear_only)
         out_input_length = sum([d_model_list[i] * n_feature_type_list[i] for i in range(len(d_model_list))])
         if drugs_on_the_side:
