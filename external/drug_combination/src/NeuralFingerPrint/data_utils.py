@@ -1,7 +1,7 @@
 import numpy as np
 import random
 import torch
-from molecules import Molecules
+from src.NeuralFingerPrint.molecules import Molecules
 import pdb
 import pandas as pd
 

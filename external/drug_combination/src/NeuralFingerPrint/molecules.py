@@ -1,5 +1,5 @@
 import rdkit
-import molecule_utils
+import src.NeuralFingerPrint.molecule_utils as molecule_utils
 from collections import Iterable
 import pandas as pd
 from src import setting
