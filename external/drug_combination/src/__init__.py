@@ -4,8 +4,8 @@ from torch import cuda, device
 import torch
 import logging
 
-if not setting.ml_train:
-    os.environ["CUDA_VISIBLE_DEVICES"] = "2"
+# if not setting.ml_train:
+#     os.environ["CUDA_VISIBLE_DEVICES"] = "2"
     # config = tf.ConfigProto()
     # config.gpu_options.allow_growth = True
     # set_session(tf.Session(config=config))
@@ -14,7 +14,7 @@ if not setting.ml_train:
 use_cuda = cuda.is_available()
 if use_cuda:
     device2 = device("cuda")
-    cuda.set_device(device2)
+
 else:
     device2 = device("cpu")
 
