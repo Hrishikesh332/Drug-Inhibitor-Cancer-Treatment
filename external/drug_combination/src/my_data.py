@@ -1223,8 +1223,8 @@ class MyDataset(data.Dataset):
         
         self._load_synergy_score()
         self._load_drug_smiles()
-        self.data_cache = np.array([self.loaded_data[ID] for ID in list_IDs])
-        self.data_cache_y = np.array([self.labels[ID] for ID in list_IDs])
+        self.data_cache = np.array([self.loaded_data[ID] for ID in sorted(list_IDs)])
+        self.data_cache_y = np.array([self.labels[ID] for ID in sorted(list_IDs)])
         
     def _load_synergy_score(self):
         """Load synergy score data if it's not already loaded."""
@@ -1257,10 +1257,5 @@ class MyDataset(data.Dataset):
         # Retrieve the corresponding label
         y = self.data_cache_y[index]
         
-        # Retrieve drug SMILES from the synergy score DataFrame
-        drug_a = MyDataset.synergy_score.loc[index, 'drug_a_name']
-        drug_a_smiles = MyDataset.drug_smile.get(drug_a, '')
-        drug_b = MyDataset.synergy_score.loc[index, 'drug_b_name']
-        drug_b_smiles = MyDataset.drug_smile.get(drug_b, '')
 
-        return (X, drug_a_smiles, drug_b_smiles), y
+        return X, y
