@@ -1174,24 +1174,32 @@ class DataPreprocessor:
         yield train_index, test_index, test_index_2, evaluation_index, evaluation_index_2
 
     @classmethod
-    def cv_train_eval_test_split_generator(cls, fold = 'fold'):
-
+    def cv_train_eval_test_split_generator(cls, fold='fold', test_fold=0):
         if cls.synergy_score is None:
             cls.synergy_score = SynergyDataReader.get_synergy_score()
 
         assert setting.index_in_literature, "Cross validation is only available when index_in_literature is set to True"
-        for evluation_fold in range(1,5):
-            test_index = np.array(cls.synergy_score[cls.synergy_score[fold] == 0].index)
-            evaluation_index = np.array(cls.synergy_score[cls.synergy_score[fold] == evluation_fold].index)
-            train_index = np.array(cls.synergy_score[(cls.synergy_score[fold] != 0) &
-                                                     (cls.synergy_score[fold] != evluation_fold)].index)
+        
+        for evaluation_fold in range(5):
+            if evaluation_fold == test_fold:
+                continue  # don't use test fold as evaluation fold
+
+            test_index = np.array(cls.synergy_score[cls.synergy_score[fold] == test_fold].index)
+            evaluation_index = np.array(cls.synergy_score[cls.synergy_score[fold] == evaluation_fold].index)
+            train_index = np.array(cls.synergy_score[(cls.synergy_score[fold] != test_fold) &
+                                                    (cls.synergy_score[fold] != evaluation_fold)].index)
+
+            # include both forward and reverse pairs
             train_index = np.concatenate([train_index + cls.synergy_score.shape[0], train_index])
             evaluation_index_2 = evaluation_index + cls.synergy_score.shape[0]
             test_index_2 = test_index + cls.synergy_score.shape[0]
+
             if setting.unit_test:
                 train_index, test_index, test_index_2, evaluation_index, evaluation_index_2 = \
                     train_index[:100], test_index[:100], test_index_2[:100], evaluation_index[:100], evaluation_index_2[:100]
+
             yield train_index, test_index, test_index_2, evaluation_index, evaluation_index_2
+
 
 class MyDataset(data.Dataset):
     synergy_score = None
