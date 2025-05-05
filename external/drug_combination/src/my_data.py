@@ -1255,7 +1255,7 @@ class MyDataset(data.Dataset):
         X = self.data_cache[index]
         
         # Retrieve the corresponding label
-        y = self.labels[index]
+        y = self.data_cache_y[index]
         
         # Retrieve drug SMILES from the synergy score DataFrame
         drug_a = MyDataset.synergy_score.loc[index, 'drug_a_name']
