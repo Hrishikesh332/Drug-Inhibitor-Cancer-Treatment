@@ -83,21 +83,6 @@ def prepare_model(reorder_tensor, entrez_set):
     
     return drug_model, best_drug_model
 
-
-def persist_data_as_data_point_file(local_X, final_index_for_X):
-    '''
-    Save drug combination feature arrays (local_X) to disk as individual .pt files, so they can later be loaded efficiently by a PyTorch Dataset/DataLoader.
-    '''
-    ### prepare files for dataloader
-    for i, combin_drug_feature_array in enumerate(local_X):
-        if setting.unit_test:
-            if i <= 501:  # and not path.exists(path.join('datas', str(final_index_for_X.iloc[i]) + '.pt')):
-                save(combin_drug_feature_array, path.join(setting.data_folder, str(final_index_for_X.iloc[i]) + '.pt'))
-        else:
-            if setting.update_features or not path.exists(
-                    path.join(setting.data_folder, str(final_index_for_X.iloc[i]) + '.pt')):
-                save(combin_drug_feature_array, path.join(setting.data_folder, str(final_index_for_X.iloc[i]) + '.pt'))
-
 def prepare_splitted_dataset(partition, labels, loaded_data):
     """
     Prepare train, validation, test, and evaluation data generators.
@@ -175,11 +160,10 @@ def run():
     partition = None
 
     split_func = my_data.DataPreprocessor.reg_train_eval_test_split
-    logger.debug("Spliting data ...")
 
         
     for fold_idx, (train_index, test_index, test_index_2, evaluation_index, evaluation_index_2) in enumerate(
-            tqdm(split_func(fold='fold', test_fold=4), desc="Folds", total=5)
+            tqdm(split_func(fold='fold', test_fold=4), desc="Folds", total=1) # the original code calls for this only
         ):
         
         if USE_wandb:
@@ -211,9 +195,7 @@ def run():
         for epoch in tqdm(range(setting.n_epochs), desc="Training Epochs"):
 
             drug_model.to(device2)  # Ensure the model is on the correct device
-            drug_model.train()
             train_total_loss = 0
-            train_i = 0
             all_preds = []
             all_ys = []
 
@@ -221,10 +203,8 @@ def run():
 
             for (cur_local_batch, cur_smiles_a, cur_smiles_b), cur_local_labels in training_iter:
                 
-                assert drug_model.training, "Model is NOT in training mode"
-                assert torch.is_grad_enabled(), "Gradients are NOT enabled"
+                drug_model.train()
 
-                train_i += 1
                 local_batch, local_labels = cur_local_batch.float().to(device2), cur_local_labels.float().to(device2)
                 local_batch = local_batch.contiguous().view(-1, 1, sum(slice_indices) + setting.single_repsonse_feature_length)
                 reorder_tensor.load_raw_tensor(local_batch)
@@ -236,14 +216,25 @@ def run():
                 assert preds.size(-1) == ys.size(-1)
                 loss = F.mse_loss(preds, ys)
                 loss.backward()
+                #added by nina
+                # torch.nn.utils.clip_grad_norm_(drug_model.parameters(), max_norm=1.0)
                 optimizer.step()
                 
                 train_total_loss += loss.item()
+                # save preds and ys for later evaluation
+                if setting.y_transform:
+                    ys = std_scaler.inverse_transform(ys.cpu().reshape(-1, 1) / 100)
+                    preds = std_scaler.inverse_transform(preds.detach().cpu().numpy().reshape(-1, 1) / 100)
+                all_preds.append(preds)
+                all_ys.append(ys)
 
-            avg_train_loss = train_total_loss / len(training_generator)
             if setting.y_transform:
-                avg_train_loss = std_scaler.inverse_transform(np.array(avg_train_loss / 100).reshape(-1, 1)).reshape(-1)[0]
-
+                
+                all_preds = np.concatenate(all_preds)
+                all_ys = np.concatenate(all_ys)
+            avg_train_loss = mean_squared_error(all_preds, all_ys)
+            train_pearson = pearsonr(all_preds.reshape(-1), all_ys.reshape(-1))[0]
+            train_spearman = spearmanr(all_preds.reshape(-1), all_ys.reshape(-1))[0]
             scheduler.step()
 
             with torch.set_grad_enabled(False):
@@ -255,31 +246,19 @@ def run():
 
                 for (cur_local_batch, cur_smiles_a, cur_smiles_b), cur_local_labels in validation_iter:
                     # No need for reshaping on CPU
-                    local_labels_on_gpu = cur_local_labels.float().to(device2)
-                    
-                    # Handle the batch without unnecessary reshaping and CPU transfers
-                    local_batch = cur_local_batch.float().to(device2)
-                    reorder_tensor.load_raw_tensor(local_batch.contiguous().view(-1, 1, sum(slice_indices) + setting.single_repsonse_feature_length))
+                    local_batch, local_labels = cur_local_batch.float().to(device2), cur_local_labels.float().to(device2)
+                    local_batch = local_batch.contiguous().view(-1, 1, sum(slice_indices) + setting.single_repsonse_feature_length)
+                    reorder_tensor.load_raw_tensor(local_batch)
                     local_batch = reorder_tensor.get_reordered_narrow_tensor()
-
                     preds = drug_model(*local_batch)
-                    preds = preds.view(-1)  # Flatten the predictions
+                    preds = preds.contiguous().view(-1)
+                    ys = local_labels.contiguous().view(-1)
 
-                    assert preds.size(-1) == local_labels_on_gpu.size(-1)
-
-                    # Directly process predictions on GPU, avoid CPU transfer unless needed
                     if setting.y_transform:
-                        # Apply inverse transformation directly on GPU (if applicable)
-                        local_labels_transformed = std_scaler.inverse_transform(local_labels_on_gpu.cpu().reshape(-1, 1) / 100)
-                        mean_prediction_transformed = std_scaler.inverse_transform(preds.cpu().reshape(-1, 1) / 100)
-                    else:
-                        local_labels_transformed = local_labels_on_gpu
-                        mean_prediction_transformed = preds
-
-                    # Append results
-                    all_preds.append(mean_prediction_transformed)  # Transfer only at the end
-                    all_ys.append(local_labels_transformed)
-
+                        ys = std_scaler.inverse_transform(ys.cpu().reshape(-1, 1) / 100)
+                        preds = std_scaler.inverse_transform(preds.detach().cpu().numpy().reshape(-1, 1) / 100)
+                    all_preds.append(preds)
+                    all_ys.append(ys)
                 # Concatenate predictions and labels after processing all batches
                 all_preds = np.concatenate(all_preds)
                 all_ys = np.concatenate(all_ys)
@@ -298,7 +277,9 @@ def run():
                         "Epoch": epoch + 1,
                         "LR": scheduler.get_last_lr()[0],
                         "Val Pearson": val_pearson,
-                        "Val Spearman": val_spearman
+                        "Val Spearman": val_spearman,
+                        "Train Pearson": train_pearson,
+                        "Train Spearman": train_spearman
                     }, step=epoch + 1)
 
                 # Save model if better performance is achieved
@@ -313,16 +294,14 @@ def run():
             logger.info(
                 "Validation mse is {0}, Validation pearson correlation is {1!r}, Validation spearman correlation is {2!r}"
                     .format(np.mean(val_loss), val_pearson, val_spearman))
-        wandb.finish()
+        if USE_wandb:
+            wandb.finish()
 
     wandb.init(project="Drug combination alpha_fold - Testing best model",)
     ### Testing
 
     if setting.load_old_model:
         best_drug_model.load_state_dict(load(setting.old_model_path).state_dict())
-
-    test_i = 0
-    save_data_num = 0
 
     with torch.set_grad_enabled(False):
 
@@ -332,61 +311,34 @@ def run():
 
         test_iter = iter(test_generator)
 
-        for (cur_local_batch, cur_smiles_a, cur_smiles_b), cur_local_labels in test_iter:
+        for (cur_local_batch, cur_smiles_a, cur_smiles_b), cur_local_labels in tqdm(test_iter, desc="Testing", total=len(test_iter)):
             # Transfer to GPU
-            test_i += 1
-            pre_local_batch = cur_local_batch
-            pre_local_labels = cur_local_labels
-            local_labels_on_cpu = np.array(pre_local_labels).reshape(-1)
-            sample_size = local_labels_on_cpu.shape[-1]
-            local_labels_on_cpu = local_labels_on_cpu[:sample_size]
-            local_batch, local_labels = pre_local_batch.float().to(device2), pre_local_labels.float().to(device2)
-            # local_batch = local_batch[:,:sum(slice_indices) + setting.single_repsonse_feature_length]
-            reorder_tensor.load_raw_tensor(local_batch.contiguous().view(-1, 1, sum(slice_indices) + setting.single_repsonse_feature_length))
+            local_batch, local_labels = cur_local_batch.float().to(device2), cur_local_labels.float().to(device2)
+            local_batch = local_batch.contiguous().view(-1, 1, sum(slice_indices) + setting.single_repsonse_feature_length)
+            reorder_tensor.load_raw_tensor(local_batch)
             local_batch = reorder_tensor.get_reordered_narrow_tensor()
-        
-            preds = best_drug_model(*local_batch)
+            preds = drug_model(*local_batch)
             preds = preds.contiguous().view(-1)
-            cur_test_start_index = len(test_index_list) // 4 * (test_i-1)
-            cur_test_stop_index = min(len(test_index_list) // 4 * (test_i), len(test_index_list))
-            for n, m in best_drug_model.named_modules():
-                if n == "out":
-                    catoutput = m._value_hook[0]
-            for i, test_combination in enumerate(test_index_list[cur_test_start_index: cur_test_stop_index]):
-                if not path.exists("test_" + setting.catoutput_output_type + "_datas"):
-                    mkdir("test_" + setting.catoutput_output_type + "_datas")
-                save(catoutput.narrow_copy(0, i, 1), path.join("test_" + setting.catoutput_output_type + "_datas",
-                                                               str(test_combination) + '.pt'))
-                save_data_num += 1
+            ys = local_labels.contiguous().view(-1)
             assert preds.size(-1) == local_labels.size(-1)
-            prediction_on_cpu = preds.cpu().numpy().reshape(-1)
-            mean_prediction_on_cpu = prediction_on_cpu
+            # Directly process predictions on GPU, avoid CPU transfer unless needed
             if setting.y_transform:
-                local_labels_on_cpu, mean_prediction_on_cpu = \
-                    std_scaler.inverse_transform(local_labels_on_cpu.reshape(-1, 1) / 100), \
-                    std_scaler.inverse_transform(prediction_on_cpu.reshape(-1, 1) / 100)
-            all_preds.append(mean_prediction_on_cpu)
-            all_ys.append(local_labels_on_cpu)
-            pre_local_batch = cur_local_batch
-            pre_local_labels = cur_local_labels
+                ys = std_scaler.inverse_transform(ys.cpu().reshape(-1, 1) / 100)
+                preds = std_scaler.inverse_transform(preds.detach().cpu().numpy().reshape(-1, 1) / 100)
+            all_preds.append(preds)
+            all_ys.append(ys)
 
-
-        logger.debug("saved {!r} data for testing dataset".format(save_data_num))
         all_preds = np.concatenate(all_preds)
         all_ys = np.concatenate(all_ys)
         assert len(all_preds) == len(all_ys), "predictions and labels are in different length"
         sample_size = len(all_preds)
-        mean_prediction = np.mean([all_preds[:sample_size],
-                                          all_preds[:sample_size]], axis=0)
-        mean_y = np.mean([all_ys[:sample_size],
-                          all_ys[:sample_size]], axis=0)
-
-        test_loss = mean_squared_error(mean_prediction, mean_y)
-        test_pearson = pearsonr(mean_y.reshape(-1), mean_prediction.reshape(-1))[0]
-        test_spearman = spearmanr(mean_y.reshape(-1), mean_prediction.reshape(-1))[0]
+        
+        test_loss = mean_squared_error(all_preds, all_ys)
+        test_pearson = pearsonr(all_ys.reshape(-1), all_preds.reshape(-1))[0]
+        test_spearman = spearmanr(all_ys.reshape(-1), all_preds.reshape(-1))[0]
         if not path.exists('prediction'):
             mkdir('prediction')
-        save(np.concatenate((np.array(test_index_list[:sample_size]).reshape(-1,1), mean_prediction.reshape(-1, 1), mean_y.reshape(-1, 1)), axis=1),
+        save(np.concatenate((np.array(test_index_list[:sample_size]).reshape(-1,1), all_preds.reshape(-1, 1), all_ys.reshape(-1, 1)), axis=1),
              "prediction/prediction_" + setting.catoutput_output_type + "_testing")
         
         if USE_wandb:
@@ -422,9 +374,7 @@ def run():
         local_batch = local_batch.contiguous().view(-1, 1, sum(slice_indices) + setting.single_repsonse_feature_length)
         reorder_tensor.load_raw_tensor(local_batch)
         local_batch = reorder_tensor.get_reordered_narrow_tensor()
-        drug_a = data_utils.convert_smile_to_feature(smiles_a, device2)
-        drug_b = data_utils.convert_smile_to_feature(smiles_b, device2)
-        drugs = (drug_a, drug_b)
+
         if setting.save_feature_imp_model:
             save(best_drug_model, setting.best_model_path)
         # Model computations
@@ -460,6 +410,8 @@ def run():
         logger.debug("Finished one batch of importance analysis")
     batch_input_importance = np.concatenate(tuple(x[0] for x in batch_input_importance), axis=0)
     pickle.dump(batch_input_importance, open(setting.input_importance_path, 'wb+'))
+    wandb.log({"Input Importance": wandb.Histogram(batch_input_importance.flatten())})
+    logger.debug("Finished all batches of input importance analysis")
 
     if setting.save_out_imp:
         batch_out_input_importance = np.concatenate(tuple(batch_out_input_importance), axis=0)
