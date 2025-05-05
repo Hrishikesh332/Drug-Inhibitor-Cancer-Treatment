@@ -172,7 +172,7 @@ def run():
                     notes=setting.data_specific)
             wandb.define_metric("Train Loss", step_metric="Epoch")
             wandb.define_metric("Validation Loss", step_metric="Epoch")
-        local_X = X[np.concatenate((train_index, test_index, test_index_2, evaluation_index, evaluation_index_2))]
+        # local_X = X[np.concatenate((train_index, test_index, test_index_2, evaluation_index, evaluation_index_2))]
        
         std_scaler.fit(Y[train_index])
         if setting.y_transform:
@@ -186,7 +186,7 @@ def run():
                     'eval2': evaluation_index_2}
 
         training_generator, eval_train_generator, validation_generator, test_generator, \
-        all_data_generator, all_data_generator_total = prepare_splitted_dataset(partition_intigers, Y.reshape(-1), local_X)
+        all_data_generator, all_data_generator_total = prepare_splitted_dataset(partition_intigers, Y.reshape(-1), X)
         test_index_list = partition_intigers['test1']
 
         logger.debug("Start training")
@@ -201,7 +201,7 @@ def run():
 
             training_iter = tqdm(training_generator, desc=f"Epoch {epoch+1}", leave=False)
 
-            for (cur_local_batch, cur_smiles_a, cur_smiles_b), cur_local_labels in training_iter:
+            for cur_local_batch, cur_local_labels in training_iter:
                 
                 drug_model.train()
 
@@ -216,11 +216,12 @@ def run():
                 assert preds.size(-1) == ys.size(-1)
                 loss = F.mse_loss(preds, ys)
                 loss.backward()
-                #added by nina
+                # added by nina
                 # torch.nn.utils.clip_grad_norm_(drug_model.parameters(), max_norm=1.0)
                 optimizer.step()
                 
                 train_total_loss += loss.item()
+                
                 # save preds and ys for later evaluation
                 if setting.y_transform:
                     ys = std_scaler.inverse_transform(ys.cpu().reshape(-1, 1) / 100)
@@ -228,10 +229,9 @@ def run():
                 all_preds.append(preds)
                 all_ys.append(ys)
 
-            if setting.y_transform:
-                
-                all_preds = np.concatenate(all_preds)
-                all_ys = np.concatenate(all_ys)
+            all_preds = np.concatenate(all_preds)
+            all_ys = np.concatenate(all_ys)
+            
             avg_train_loss = mean_squared_error(all_preds, all_ys)
             train_pearson = pearsonr(all_preds.reshape(-1), all_ys.reshape(-1))[0]
             train_spearman = spearmanr(all_preds.reshape(-1), all_ys.reshape(-1))[0]
@@ -244,7 +244,7 @@ def run():
 
                 validation_iter = iter(validation_generator)
 
-                for (cur_local_batch, cur_smiles_a, cur_smiles_b), cur_local_labels in validation_iter:
+                for cur_local_batch, cur_local_labels in validation_iter:
                     # No need for reshaping on CPU
                     local_batch, local_labels = cur_local_batch.float().to(device2), cur_local_labels.float().to(device2)
                     local_batch = local_batch.contiguous().view(-1, 1, sum(slice_indices) + setting.single_repsonse_feature_length)
@@ -311,7 +311,7 @@ def run():
 
         test_iter = iter(test_generator)
 
-        for (cur_local_batch, cur_smiles_a, cur_smiles_b), cur_local_labels in tqdm(test_iter, desc="Testing", total=len(test_iter)):
+        for cur_local_batch, cur_local_labels in tqdm(test_iter, desc="Testing", total=len(test_iter)):
             # Transfer to GPU
             local_batch, local_labels = cur_local_batch.float().to(device2), cur_local_labels.float().to(device2)
             local_batch = local_batch.contiguous().view(-1, 1, sum(slice_indices) + setting.single_repsonse_feature_length)
