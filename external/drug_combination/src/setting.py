@@ -44,7 +44,7 @@ if not os.path.exists(run_dir):
 
 update_final_index = True
 final_index = os.path.join(data_src_dir, "synergy_score/final_index.csv")
-update_xy = False
+update_xy = True
 old_x = os.path.join(data_src_dir,"synergy_score/x.npy")
 old_x_lengths = os.path.join(data_src_dir,"synergy_score/old_x_lengths.pkl")
 old_y = os.path.join(data_src_dir,"synergy_score/y.pkl")
@@ -139,7 +139,7 @@ ecfp_phy_drug_filter_only = True
 save_each_ecfp_phy_data_point = True
 
 ### ['gene_dependence', 'netexpress','gene_expression', 'cl_F_repr', 'cl_ECFP', 'cl_drug_physiochemistry', 'combine_drugs_for_cl']
-cellline_features = ['gene_dependence', 'gene_expression']
+cellline_features = ['gene_dependence', 'gene_expression'] # ['gene_dependence', 'gene_expression']
 #cellline_features = ['cl_F_repr' ]
 
 one_linear_per_dim = True
