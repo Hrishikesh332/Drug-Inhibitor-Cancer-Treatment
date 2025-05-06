@@ -9,7 +9,12 @@ Thsi repository was originally set up for two gpu cards, however we made it so t
 ```
 mamba env create -f environment.yml
 ```
+** if you are a conda user, you can set up mamba (for faster environment building) like follows:
 
+```
+conda install mamba -n base -c conda-forge
+
+```
 ## Check model performance with differnt cell line features (gene dependencies, gene expression and netexpress scores)
 ### gene dependencies
 ```

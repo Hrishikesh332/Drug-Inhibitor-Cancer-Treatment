@@ -6,7 +6,7 @@ from torch.utils import data
 from src import drug_drug, setting, network_propagation, logger
 from sklearn.preprocessing import StandardScaler
 from torch import save
-
+from tqdm import tqdm
 
 class CustomDataLoader:
     pass
@@ -327,7 +327,7 @@ class GeneDependenciesDataReader(CustomDataReader):
     @classmethod
     def __initialize_genes_dp_indexes(cls):
         if cls.genes_dp_indexes is None:
-            cls.genes_dp_indexes = pd.read_csv(setting.working_dir + "/cl_gene_dp/all_dependencies_genes_map.csv",
+            cls.genes_dp_indexes = pd.read_csv(setting.working_dir + "/data/cl_gene_dp/all_dependencies_genes_map.csv",
                                                usecols=['symbol', 'entrez'], dtype={'entrez': np.int})
     @classmethod
     def __initialize_genes_dp(cls):
@@ -505,7 +505,11 @@ class ExpressionDataLoader(CustomDataLoader):
         ###              A375   ..... (celllines)
         ###   1003(entrez)
         ###    ...
-
+        
+        # if gene expression does not exist, just output the preprocessed data
+        if not path.exists(setting.gene_expression) and path.exists(setting.processed_expression_raw):
+            return pd.read_csv(setting.processed_expression_raw)
+        
         cls.__initialize_gene_expression()
 
         result_df = cls.__filter_celllines(cls.gene_expression, celllines)
@@ -937,7 +941,7 @@ class SamplesDataLoader(CustomDataLoader):
             if 'drug_target_profile' in setting.drug_features:
 
                 drug_a_target_feature = cls.simulated_drug_target.loc[list(cls.synergy_score['drug_a_name']), :]
-                drug_a_target_feature = pd.DataFrame(drug_a_target_feature, columns=cls.entrez_set).reset_index(drop=True)
+                drug_a_target_feature = pd.DataFrame(drug_a_target_feature, columns=list(cls.entrez_set)).reset_index(drop=True)
                 if setting.add_single_response_to_drug_target:
 
                     # drug_a_single_response = cls.single_drug_response.loc[list(cls.synergy_score['drug_a_name']), :]
@@ -947,12 +951,12 @@ class SamplesDataLoader(CustomDataLoader):
                                                                             right_on = ['drug_a_name', 'cell_line'])['pIC50'].values
                     assert len(drug_a_single_response) == len(drug_a_target_feature), "single repsonse data didn't have same length with drug feature"
                     drug_a_target_feature['pIC50'] = drug_a_single_response
-
+                # single response feature added to drug target feature !!!!!!!!!!!!!!!!!!!
                 drug_a_target_feature.fillna(0, inplace=True)
                 cls.drug_a_features.append(drug_a_target_feature.values)
                 cls.drug_features_lengths.append(drug_a_target_feature.shape[1])
                 drug_b_target_feature = cls.simulated_drug_target.loc[list(cls.synergy_score['drug_b_name']), :]
-                drug_b_target_feature = pd.DataFrame(drug_b_target_feature, columns=cls.entrez_set).reset_index(drop=True)
+                drug_b_target_feature = pd.DataFrame(drug_b_target_feature, columns=list(cls.entrez_set)).reset_index(drop=True)
                 if setting.add_single_response_to_drug_target:
                     # drug_b_single_response = cls.single_drug_response.loc[list(cls.synergy_score['drug_b_name']), :]
                     drug_b_single_response = cls.single_drug_response.merge(cls.synergy_score,
@@ -993,13 +997,13 @@ class SamplesDataLoader(CustomDataLoader):
             if 'gene_dependence' in setting.cellline_features:
 
                 dp_features = cls.sel_dp[list(cls.synergy_score['cell_line'])].T
-                dp_features = pd.DataFrame(dp_features, columns=cls.entrez_set).reset_index(drop=True)
+                dp_features = pd.DataFrame(dp_features, columns=list(cls.entrez_set)).reset_index(drop=True)
                 dp_features.fillna(0, inplace=True)
                 cls.cellline_features.append(dp_features.values)
                 cls.cellline_features_lengths.append(dp_features.shape[1])
             if 'combine_drugs_for_cl' in setting.cellline_features:
 
-                combine_drug_multi_gene_express = pd.DataFrame(cls.combine_drug_multi_gene_express, columns=cls.entrez_set).reset_index(drop=True)
+                combine_drug_multi_gene_express = pd.DataFrame(cls.combine_drug_multi_gene_express, columns=list(cls.entrez_set)).reset_index(drop=True)
                 combine_drug_multi_gene_express.fillna(0, inplace=True)
                 if setting.expression_dependencies_interaction and dp_features is not None:
                     combine_drug_multi_gene_express = pd.DataFrame(np.multiply(combine_drug_multi_gene_express.values, dp_features.values),
@@ -1057,6 +1061,7 @@ class SamplesDataLoader(CustomDataLoader):
         ###         ndarray (n_samples, n_type_features * feature_dim) else
         raw_x = cls.__construct_whole_raw_X()
         entrez_array = np.array(list(cls.entrez_set))
+        expanded_entrez = np.array(list(cls.entrez_set) + [np.nan])
         if methods == 'attn':
             x = raw_x.reshape(-1, setting.n_feature_type, len(cls.entrez_set))
             filter_drug_features_len = filter_cl_features_len = x.shape[-1]
@@ -1067,15 +1072,18 @@ class SamplesDataLoader(CustomDataLoader):
             return raw_x, cls.drug_features_lengths, cls.cellline_features_lengths
 
         else:
-            drug_features_len = int(1 / setting.n_feature_type * raw_x.shape[1])
+            drug_features_len = int(1 / setting.n_feature_type[0] * raw_x.shape[1])
             cl_features_len = int(raw_x.shape[1] - 2 * drug_features_len)
-            assert cl_features_len == int((1 - 2 / setting.n_feature_type) * raw_x.shape[1]), \
+            assert cl_features_len == int((1 - 2 / setting.n_feature_type[0]) * raw_x.shape[1]), \
                 "features len are calculated in wrong way"
             var_filter = raw_x.var(axis=0) > 0
+
             filter_drug_features_len = sum(var_filter[:drug_features_len])
             filter_cl_features_len = sum(var_filter[2*drug_features_len:])
-            drug_features_name = entrez_array[var_filter[:drug_features_len]]
-            cl_features_name = np.array(list(entrez_array) * (setting.n_feature_type - 2))[var_filter[2 * drug_features_len:]]
+            drug_features_name = expanded_entrez[var_filter[:drug_features_len]]
+            #FIX by Nina: entrez array is only 2401 long, there fore we added np.nan to entrez
+            
+            cl_features_name = np.array(list(expanded_entrez) * (setting.n_feature_type[0] - 2))[var_filter[2 * drug_features_len:]]
             x = raw_x[:, var_filter]
             assert filter_drug_features_len == len(drug_features_name) and filter_cl_features_len == len(cl_features_name), \
                                                                                   'features len and names do not match'
@@ -1166,70 +1174,88 @@ class DataPreprocessor:
         yield train_index, test_index, test_index_2, evaluation_index, evaluation_index_2
 
     @classmethod
-    def cv_train_eval_test_split_generator(cls, fold = 'fold'):
-
+    def cv_train_eval_test_split_generator(cls, fold='fold', test_fold=0):
         if cls.synergy_score is None:
             cls.synergy_score = SynergyDataReader.get_synergy_score()
 
         assert setting.index_in_literature, "Cross validation is only available when index_in_literature is set to True"
-        for evluation_fold in range(1,5):
-            test_index = np.array(cls.synergy_score[cls.synergy_score[fold] == 0].index)
-            evaluation_index = np.array(cls.synergy_score[cls.synergy_score[fold] == evluation_fold].index)
-            train_index = np.array(cls.synergy_score[(cls.synergy_score[fold] != 0) &
-                                                     (cls.synergy_score[fold] != evluation_fold)].index)
+        
+        for evaluation_fold in range(5):
+            if evaluation_fold == test_fold:
+                continue  # don't use test fold as evaluation fold
+
+            test_index = np.array(cls.synergy_score[cls.synergy_score[fold] == test_fold].index)
+            evaluation_index = np.array(cls.synergy_score[cls.synergy_score[fold] == evaluation_fold].index)
+            train_index = np.array(cls.synergy_score[(cls.synergy_score[fold] != test_fold) &
+                                                    (cls.synergy_score[fold] != evaluation_fold)].index)
+
+            # include both forward and reverse pairs
             train_index = np.concatenate([train_index + cls.synergy_score.shape[0], train_index])
             evaluation_index_2 = evaluation_index + cls.synergy_score.shape[0]
             test_index_2 = test_index + cls.synergy_score.shape[0]
+
             if setting.unit_test:
                 train_index, test_index, test_index_2, evaluation_index, evaluation_index_2 = \
                     train_index[:100], test_index[:100], test_index_2[:100], evaluation_index[:100], evaluation_index_2[:100]
+
             yield train_index, test_index, test_index_2, evaluation_index, evaluation_index_2
 
-class MyDataset(data.Dataset):
 
+class MyDataset(data.Dataset):
     synergy_score = None
     drug_smile = None
     'Characterizes a dataset for PyTorch'
-    def __init__(self, list_IDs, labels, prefix=None):
-        'Initialization'
+    
+    def __init__(self, list_IDs, labels, loaded_data, prefix=None):
+        """
+        Initialization of the dataset.
+        
+        Args:
+        - list_IDs: List of sample identifiers.
+        - labels: Dictionary containing labels for each sample.
+        - loaded_data: Preloaded data.
+        - prefix: Optional prefix for the dataset path.
+        """
         self.labels = labels
         self.list_IDs = list_IDs
         self.prefix = prefix
+        self.loaded_data = loaded_data
+        
+        self._load_synergy_score()
+        self._load_drug_smiles()
+        self.data_cache = np.array([self.loaded_data[ID] for ID in sorted(list_IDs)])
+        self.data_cache_y = np.array([self.labels[ID] for ID in sorted(list_IDs)])
+        
+    def _load_synergy_score(self):
+        """Load synergy score data if it's not already loaded."""
         if MyDataset.synergy_score is None:
-            print('prepare synergy score')
+            print('Preparing synergy score...')
             MyDataset.synergy_score = SynergyDataReader.get_synergy_score()
             synergy_score_reverse = MyDataset.synergy_score.copy()
             synergy_score_reverse['drug_a_name'] = MyDataset.synergy_score['drug_b_name']
             synergy_score_reverse['drug_b_name'] = MyDataset.synergy_score['drug_a_name']
             MyDataset.synergy_score = pd.concat([MyDataset.synergy_score, synergy_score_reverse])
             MyDataset.synergy_score.reset_index(inplace=True)
+            
+    def _load_drug_smiles(self):
+        """Load drug smile data if it's not already loaded."""
         if MyDataset.drug_smile is None:
-            print('prepare drug smile')
+            print('Preparing drug smiles...')
             name_smile_df = pd.read_csv(setting.inchi_merck)
             MyDataset.drug_smile = {name: smile for name, smile in zip(name_smile_df['Name'], name_smile_df['SMILE'])}
 
+    
     def __len__(self):
-        'Denotes the total number of samples'
+        """Returns the total number of samples in the dataset."""
         return len(self.list_IDs)
 
     def __getitem__(self, index):
-        'Generates one sample of data'
-        # Select sample
-        ID = self.list_IDs[index]
-        if self.prefix is None:
-            drug_combine_file = path.join(setting.data_folder, ID + '.pt')
-        else:
-            drug_combine_file = self.prefix + '_datas/' + ID + '.pt'
-        # Load data and get label
-        try:
-            X = torch.load(drug_combine_file)
-        except:
-            logger.error("Fail to get {}".format(ID))
-            raise
-        y = self.labels[ID]
-        drug_a = MyDataset.synergy_score.loc[index, 'drug_a_name']
-        drug_a_smiles = MyDataset.drug_smile[drug_a]
-        drug_b = MyDataset.synergy_score.loc[index, 'drug_b_name']
-        drug_b_smiles = MyDataset.drug_smile[drug_b]
+        """Generates one sample of data."""
+        # Retrieve data from the cache
+        X = self.data_cache[index]
+        
+        # Retrieve the corresponding label
+        y = self.data_cache_y[index]
+        
 
-        return (X, drug_a_smiles, drug_b_smiles), y
+        return X, y
