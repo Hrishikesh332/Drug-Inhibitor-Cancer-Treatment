@@ -1,9 +1,37 @@
 # Motivation
 
 In many patients, a tumor’s innate or acquired resistance to a given therapy will render the treatment ineffective. To increase therapeutic options and to overcome drug resistance, cancer researchers have been actively investigating drug combinations.
+The repository was originally set up for two gpu cards, however we made it so that only one cuda device or none is allowed.
 
-Thsi repository was originally set up for two gpu cards, however we made it so that only one cuda device or none is allowed.
-#TODO: I also believe that there was an error in readme and in gitignore to paste the dataset into src? I pasted it into data/ it should be working i think, but we'll see.
+# Dataset
+
+## Download LFS files
+
+Files under `./data` are managed using [Git Large File Storage (Git LFS)](https://git-lfs.github.com/). 
+Follow the instructions below to fetch the LFS data:
+
+1. **Install Git LFS**  
+   Follow the instructions at: https://git-lfs.github.com/
+
+2. **Initialize Git LFS (run once per system)**  
+   ```bash
+   git lfs install
+    ```
+3. **Pull files**
+   ```bash
+   git lfs pull
+    ```
+
+## Download processed dataset
+1. **Install zenodo-get**
+```
+pip install zenodo-get # TODO: include in packaging/environment creation
+```
+2. **Download data to data/synergy_score file**
+```
+zenodo_get 10.5281/zenodo.4789936 -o ./data/preprocessed
+```
+
 ## Build environment (dependencies)
 **we changed this to fit not only to linux, but be cross platform**
 ```
@@ -38,17 +66,6 @@ python ./attention_main.py
 #### check results
 check the logfile in the newest ```_run_*****``` folder
 
-# Dataset
-
-### Download processed dataset
-#### 1. Install zenodo-get
-```
-pip install zenodo-get
-```
-#### 2. Download data to data/synergy_score file
-```
-zenodo_get 10.5281/zenodo.4789936
-```
 ## Drug combination Synergy scores
 
 #### An Unbiased Oncology Compound Screen to Identify Novel Combination Strategies. (O'Neil J et. al)
