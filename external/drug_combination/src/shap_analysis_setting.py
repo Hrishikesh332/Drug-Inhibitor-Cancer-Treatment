@@ -8,7 +8,7 @@ importance_files = ["shap_analysis_dat/input_importance_nest_label_2401_0.5_dedu
 all_index_list_file = "shap_analysis_dat/all_index_list"
 
 drug_target = os.path.join(cwd, "chemicals/new_raw_chemicals.csv")
-gene_map_df_file = "Genes/genes_2401_df.csv"
+gene_map_df_file = "genes/genes_2401_df.csv"
 gene_pickle_file = "shap_analysis_dat/gene2401_pkl_file.p"
 
 

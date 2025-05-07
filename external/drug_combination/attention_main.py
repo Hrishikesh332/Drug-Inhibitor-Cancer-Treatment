@@ -168,7 +168,8 @@ def run():
         
         if USE_wandb:
             wandb.init(project=f"Drug combination alpha_fold_{fold_idx}",
-                    name=setting.run_dir.rsplit('\\', 1)[1] + '_' + setting.data_specific[:15] + '_' + str(random_seed),
+                    name=setting.run_dir.rsplit('/', 1)[1] + '_' + setting.data_specific[:15] + '_' + str(random_seed),  # TODO: make cross platform
+
                     notes=setting.data_specific)
             wandb.define_metric("Train Loss", step_metric="Epoch")
             wandb.define_metric("Validation Loss", step_metric="Epoch")
@@ -425,7 +426,7 @@ def run():
 
 if __name__ == "__main__":
 
-    USE_wandb = True
+    USE_wandb = False
     if USE_wandb:
         pass
     else:

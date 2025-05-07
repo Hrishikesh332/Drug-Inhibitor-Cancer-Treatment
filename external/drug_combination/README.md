@@ -29,7 +29,7 @@ pip install zenodo-get # TODO: include in packaging/environment creation
 ```
 2. **Download data to data/synergy_score file**
 ```
-zenodo_get 10.5281/zenodo.4789936 -o ./data/preprocessed
+zenodo_get 10.5281/zenodo.4789936 -o ./data/synergy_score
 ```
 
 ## Build environment (dependencies)

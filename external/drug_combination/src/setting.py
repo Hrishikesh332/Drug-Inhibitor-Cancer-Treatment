@@ -69,7 +69,7 @@ conv_size = [16, 16]
 degree = [0, 1, 2, 3, 4, 5]
 drug_emb_dim = 512
 
-genes = os.path.join(data_src_dir, 'Genes', 'genes_2401_df.csv')
+genes = os.path.join(data_src_dir, 'genes', 'genes_2401_df.csv')
 synergy_score = os.path.join(data_src_dir, 'synergy_score', 'synergy_score.csv')
 pathway_dataset = os.path.join(data_src_dir, 'pathways', 'genewise.p')
 cl_genes_dp = os.path.join(data_src_dir, 'cl_gene_dp', 'new_gene_dependencies_35.csv')
@@ -115,12 +115,12 @@ if not os.path.exists(os.path.join(src_dir, 'tensorboard_logs')):
 tensorboard_log = os.path.join(src_dir, "tensorboard_logs/{}".format(time()))
 
 combine_gene_expression_renew = False
-gene_expression = "Gene_expression_raw/normalized_gene_expession_35_norm.tsv" #"CCLE.tsv"
-backup_expression = "Gene_expression_raw/normalized_gene_expession_35_norm.tsv" #"GDSC.tsv"
-netexpress_df = "Gene_expression_raw/netexpress_norm_35.tsv"
+gene_expression = "gene_expression_raw/normalized_gene_expession_35_norm.tsv" #"CCLE.tsv"
+backup_expression = "gene_expression_raw/normalized_gene_expession_35_norm.tsv" #"GDSC.tsv"
+netexpress_df = "gene_expression_raw/netexpress_norm_35.tsv"
 
 raw_expression_data_renew = False
-processed_expression_raw = os.path.join(data_src_dir, 'Gene_expression_raw', 'processed_expression_raw_norm')
+processed_expression_raw = os.path.join(data_src_dir, 'gene_expression_raw', 'processed_expression_raw_norm')
 
 combine_drug_target_renew = False
 combine_drug_target_matrix = os.path.join(data_src_dir, 'chemicals', 'combine_drug_target_matrix.csv')

@@ -26,9 +26,9 @@ class GenesDataReader(CustomDataReader):
 
         if cls.genes is None:
             cls.genes = pd.read_csv(setting.genes,
-                                    dtype={'entrez': np.int})
+                                    dtype={'entrez': np.int64})
         assert {'symbol','entrez'}.issubset(set(cls.genes.columns)), \
-            "Genes data frame columns name should have symbol and entrez"
+            "genes data frame columns name should have symbol and entrez"
 
     @classmethod
     def get_genes(cls):
@@ -62,9 +62,9 @@ class NetworkDataReader(CustomDataReader):
             cls.raw_network = pd.read_csv(setting.network, header=None, sep ='\t')
             assert len(cls.raw_network.columns) == 3, "genes network file should have three columns"
             cls.raw_network.columns = ['entrez_a', 'entrez_b', 'association']
-            cls.raw_network = cls.raw_network.astype({'entrez_a': np.int,
-                                                      'entrez_b': np.int,
-                                                      'association': np.float})
+            cls.raw_network = cls.raw_network.astype({'entrez_a': np.int64,
+                                                      'entrez_b': np.int64,
+                                                      'association': np.float64})
 
     @classmethod
     def __filter_network(cls):
@@ -328,7 +328,7 @@ class GeneDependenciesDataReader(CustomDataReader):
     def __initialize_genes_dp_indexes(cls):
         if cls.genes_dp_indexes is None:
             cls.genes_dp_indexes = pd.read_csv(setting.working_dir + "/data/cl_gene_dp/all_dependencies_genes_map.csv",
-                                               usecols=['symbol', 'entrez'], dtype={'entrez': np.int})
+                                               usecols=['symbol', 'entrez'], dtype={'entrez': np.int64})
     @classmethod
     def __initialize_genes_dp(cls):
 
@@ -366,8 +366,7 @@ class GeneDependenciesDataReader(CustomDataReader):
         cls.genes_dp = cls.genes_dp.groupby(level = 0).mean()
         cls.genes_dp = cls.genes_dp.loc[cls.genes_dp.index.intersection(index_filter_1)].reindex(index_filter_1)
         cls.gene_filtered = True
-        print(len(index_filter_1))
-        assert len(index_filter_1) != 0 and isinstance(index_filter_1[0], np.int), "entrezID filter should be integer"
+        assert len(index_filter_1) != 0 and isinstance(index_filter_1[0], int), "entrezID filter should be integer"
 
     @classmethod
     def __rm_duplications(cls):
