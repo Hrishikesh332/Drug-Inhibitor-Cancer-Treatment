@@ -1,7 +1,7 @@
 import concurrent.futures
 import pickle
 import random
-from os import environ, mkdir, path
+from os import environ, mkdir, path, sep
 
 import numpy as np
 import pandas as pd
@@ -171,7 +171,7 @@ def run():
         
         if USE_wandb:
             wandb.init(project=f"Drug combination alpha_fold_{fold_idx}",
-                    name = path.basename(setting.run_dir).rsplit(os.sep, 1)[-1] + '_' + setting.data_specific[:15] + '_' + str(random_seed),
+                    name = path.basename(setting.run_dir).rsplit(sep, 1)[-1] + '_' + setting.data_specific[:15] + '_' + str(random_seed),
 
                     notes=setting.data_specific)
             wandb.define_metric("Train Loss", step_metric="Epoch")
