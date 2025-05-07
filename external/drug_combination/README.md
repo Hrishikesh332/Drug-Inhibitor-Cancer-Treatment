@@ -5,50 +5,31 @@ The repository was originally set up for two gpu cards, however we made it so th
 
 ## Build environment (dependencies)
 
-**❗CPU-only instructions, if you have a GPU, skip to [4. GPU Compatibility](#gpu-compatibility)**
-1. **Create environment**  
+### 1. Create environment
 ```bash
 conda create -yn trans_synergy python=3.11
 ```
-2. **Activate environment**  
+### 2. Activate environment
 ```bash
 conda activate trans_synergy
 ```
-3. **Install package**
+### 3. Install PyTorch
+Based on your environment, install a compatible PyTorch version: [PyTorch Get Started](https://pytorch.org/get-started/locally/). 
+Visit the official PyTorch page for previous versions:  
+[PyTorch Previous Versions](https://pytorch.org/get-started/previous-versions/)<br>
+If you use CUDA, you can run the following command to check your installed CUDA version:
+```bash
+nvidia-smi      
+```
+Example Setup for CUDA 12.4:
+```bash
+conda install pytorch==2.4.1 pytorch-cuda=12.4 -c pytorch -c nvidia 
+```
+
+### 4. Install package
 ```bash
 pip install -e .
 ```
-
-4. **GPU Compatibility**  
-To ensure GPU compatibility, follow these steps:
-
-    4.1. **Check Your CUDA Version**  
-    Run the following command to check your installed CUDA version:
-    ```bash
-    nvidia-smi
-    ```
-    4.2. **Download the Correct PyTorch Version**  
-    Based on your CUDA version, download the compatible PyTorch version as specified in `pyproject.toml`. Visit the official PyTorch page for previous versions:  
-    [PyTorch Previous Versions](https://pytorch.org/get-started/previous-versions/)
-
-    4.3 **Example Setup for CUDA 12.4**
-    The last line is the difference to the cpu-only setup.
-    ```bash
-    conda create -yn trans_synergy python=3.11
-    conda activate trans_synergy
-    conda install pytorch==2.4.1 pytorch-cuda=12.4 -c pytorch -c nvidia 
-    ```
-    Then, rename the GPU-specific pyproject file:
-    ```bash
-    mv pyproject.toml.for_gpu pyproject.toml
-    ```
-    The only difference here is the torch version is not specified, since we already installed the gpu-specific version.
-
-    4.4 **Install package**
-    ```bash
-    pip install -e .
-    ```
-
 
 ## Dataset
 
@@ -90,11 +71,11 @@ cp trans_synergy/setting_gene_expression.py trans_synergy/setting.py
 cp trans_synergy/setting_net.py trans_synergy/setting.py
 ```
 
-# Run 
+## Run training
 ```
 python attention_main.py
 ```
-#### check results
+#### Check results
 check the logfile in the newest ```_run_*****``` folder
 
 ## Drug combination Synergy scores
