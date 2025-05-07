@@ -429,7 +429,7 @@ def run():
 
 if __name__ == "__main__":
 
-    USE_wandb = False
+    USE_wandb = True
     if USE_wandb:
         pass
     else:
