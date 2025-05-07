@@ -171,7 +171,7 @@ def run():
         
         if USE_wandb:
             wandb.init(project=f"Drug combination alpha_fold_{fold_idx}",
-                    name=setting.run_dir.rsplit('/', 1)[1] + '_' + setting.data_specific[:15] + '_' + str(random_seed),  # TODO: make cross platform
+                    name = path.basename(setting.run_dir).rsplit(os.sep, 1)[-1] + '_' + setting.data_specific[:15] + '_' + str(random_seed),
 
                     notes=setting.data_specific)
             wandb.define_metric("Train Loss", step_metric="Epoch")
