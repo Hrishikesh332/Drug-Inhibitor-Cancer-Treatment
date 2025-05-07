@@ -5,7 +5,7 @@ import shutil
 unit_test = False
 
 working_dir = os.getcwd()
-src_dir = os.path.join(working_dir, 'src')
+src_dir = os.path.join(working_dir, 'trans_synergy')
 data_src_dir = os.path.join(working_dir, 'data')
 # propagation_methods: target_as_1, RWlike, random_walk
 propagation_method = 'random_walk'

@@ -6,7 +6,7 @@ from os import path, mkdir, environ
 import torch
 from torch import save, load
 from torch.utils import data
-from src import attention_model, drug_drug, setting, my_data, logger, device2
+from trans_synergy import attention_model, drug_drug, setting, my_data, logger, device2
 import torch.nn.functional as F
 from scipy.stats import pearsonr, spearmanr
 from sklearn.metrics import mean_squared_error
@@ -15,7 +15,7 @@ import shap
 import pickle
 from sklearn.cluster import MiniBatchKMeans
 import wandb
-import src.NeuralFingerPrint.data_utils as data_utils
+import trans_synergy.NeuralFingerPrint.data_utils as data_utils
 import concurrent.futures
 import random
 executor = concurrent.futures.ThreadPoolExecutor(max_workers=2)

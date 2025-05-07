@@ -1,5 +1,5 @@
 import torch.nn as nn
-from src.Sublayers import FeedForward, MultiHeadAttention, Norm, attention
+from trans_synergy.Sublayers import FeedForward, MultiHeadAttention, Norm, attention
 import torch
 
 

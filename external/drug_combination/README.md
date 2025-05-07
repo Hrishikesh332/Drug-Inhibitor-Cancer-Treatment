@@ -22,26 +22,23 @@ Follow the instructions below to fetch the LFS data:
    git lfs pull
     ```
 
-## Download processed dataset
-1. **Install zenodo-get**
-```
-pip install zenodo-get # TODO: include in packaging/environment creation
-```
-2. **Download data to data/synergy_score file**
-```
+## Download processed synergy score files
+```bash
 zenodo_get 10.5281/zenodo.4789936 -o ./data/synergy_score
 ```
 
 ## Build environment (dependencies)
-**we changed this to fit not only to linux, but be cross platform**
+1. **Create environment**  
+```bash
+conda create -yn trans_synergy python=3.11
 ```
-mamba env create -f environment.yml
+2. **Activate environment**  
+```bash
+conda activate trans_synergy
 ```
-** if you are a conda user, you can set up mamba (for faster environment building) like follows:
-
-```
-conda install mamba -n base -c conda-forge
-
+3. **Install package**
+```bash
+pip install -e .
 ```
 ## Check model performance with differnt cell line features (gene dependencies, gene expression and netexpress scores)
 ### gene dependencies

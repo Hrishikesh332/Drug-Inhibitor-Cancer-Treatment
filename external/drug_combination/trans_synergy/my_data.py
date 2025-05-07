@@ -3,7 +3,7 @@ from os import path, mkdir
 import numpy as np
 import torch
 from torch.utils import data
-from src import drug_drug, setting, network_propagation, logger
+from trans_synergy import drug_drug, setting, network_propagation, logger
 from sklearn.preprocessing import StandardScaler
 from torch import save
 from tqdm import tqdm

@@ -1,5 +1,5 @@
 import pandas as pd
-from src import setting
+from trans_synergy import setting
 from sklearn.model_selection import ShuffleSplit, GroupKFold
 from scipy.stats import pearsonr
 import logging

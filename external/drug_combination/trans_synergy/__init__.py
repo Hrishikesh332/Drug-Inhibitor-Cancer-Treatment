@@ -1,4 +1,4 @@
-from src import setting
+from trans_synergy import setting
 import os
 from torch import cuda, device
 import torch

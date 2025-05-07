@@ -1,7 +1,7 @@
 from scipy.sparse import csr_matrix
 import pandas as pd
 import numpy as np
-from src import setting
+from trans_synergy import setting
 import os
 import logging
 import pdb
