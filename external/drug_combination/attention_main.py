@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 import concurrent.futures
 import pickle
 import random

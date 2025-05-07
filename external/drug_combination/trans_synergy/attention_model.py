@@ -24,8 +24,8 @@ class Encoder(nn.Module):
         self.layers = get_clones(EncoderLayer(d_model, heads, dropout), N)
         self.norm = Norm(d_model)
 
-    def forward(self, trans_synergy, mask=None, low_dim=False):
-        x = trans_synergy
+    def forward(self, src, mask=None, low_dim=False):
+        x = src
         for i in range(self.N):
             x = self.layers[i](x, mask, low_dim=low_dim)
         return x if low_dim else self.norm(x)
@@ -37,10 +37,10 @@ class Decoder(nn.Module):
         self.layers = get_clones(DecoderLayer(d_model, heads, dropout), N)
         self.norm = Norm(d_model)
 
-    def forward(self, trg, e_outputs, trans_synergy_mask=None, trg_mask=None, low_dim = False):
+    def forward(self, trg, e_outputs, src_mask=None, trg_mask=None, low_dim = False):
         x = trg
         for i in range(self.N):
-            x = self.layers[i](x, e_outputs, trans_synergy_mask, trg_mask, low_dim=low_dim)
+            x = self.layers[i](x, e_outputs, src_mask, trg_mask, low_dim=low_dim)
         return x if low_dim else self.norm(x)
 
 class Transformer(nn.Module):
@@ -54,12 +54,12 @@ class Transformer(nn.Module):
         # self.attn = MultiheadAttention(16, num_heads = heads, dropout = dropout)
         # self.shrink_dim_linear = nn.Linear(16, d_model)
 
-    def forward(self, trans_synergy, trg, trans_synergy_mask=None, trg_mask=None, low_dim = False):
-        # trans_synergy = self.expand_dim_linear(trans_synergy)
+    def forward(self, src, trg, src_mask=None, trg_mask=None, low_dim = False):
+        # src = self.expand_dim_linear(src)
         # trg = self.expand_dim_linear(trg)
-        e_outputs = self.encoder(trans_synergy, trans_synergy_mask, low_dim = low_dim)
-        d_output = self.decoder(trg, e_outputs, trans_synergy_mask, trg_mask, low_dim=low_dim)
-        # d_output, _ = self.attn(trans_synergy, trg, trg)
+        e_outputs = self.encoder(src, src_mask, low_dim = low_dim)
+        d_output = self.decoder(trg, e_outputs, src_mask, trg_mask, low_dim=low_dim)
+        # d_output, _ = self.attn(src, trg, trg)
         # d_output = self.shrink_dim_linear(d_output)
         flat_d_output = d_output.contiguous().view(-1, d_output.size(-2)*d_output.size(-1))
         return flat_d_output
@@ -75,17 +75,17 @@ class FlexibleTransformer(Transformer):
         out_input_length = d_model * sum(n_feature_type_list)
         self.out = OutputFeedForward(out_input_length, 1, d_layers=setting.output_FF_layers, dropout=dropout)
 
-    def forward(self, trans_synergy_list, trg_list, trans_synergy_mask=None, trg_mask=None, low_dim = False):
+    def forward(self, src_list, trg_list, src_mask=None, trg_mask=None, low_dim = False):
 
-        assert len(self.linear_layers) == len(trans_synergy_list), "Features and sources length are different"
-        final_trans_synergys = []
+        assert len(self.linear_layers) == len(src_list), "Features and sources length are different"
+        final_srcs = []
         final_trgs = []
         for i in range(len(self.linear_layers)):
-            final_trans_synergys.append(self.linear_layers[i](trans_synergy_list[i]))
+            final_srcs.append(self.linear_layers[i](src_list[i]))
             final_trgs.append(self.linear_layers[i](trg_list[i]))
-        final_trans_synergy = cat(tuple(final_trans_synergys), 1)
+        final_src = cat(tuple(final_srcs), 1)
         final_trg = cat(tuple(final_trgs), 1)
-        flat_d_output = super().forward(final_trans_synergy, final_trg)
+        flat_d_output = super().forward(final_src, final_trg)
         output = self.out(flat_d_output)
         return output
 
@@ -114,39 +114,39 @@ class TransposeMultiTransformers(nn.Module):
         for i in range(len(d_input_list)):
             self.transformer_list.append(Transformer(n_feature_type_list[i] * setting.d_model_i, N, heads, dropout))
 
-    def forward(self, trans_synergy_list, trg_list=None, trans_synergy_mask=None, trg_mask=None, low_dim = False):
+    def forward(self, src_list, trg_list=None, src_mask=None, trg_mask=None, low_dim = False):
 
         # x = F.relu(self.linear_1(x))
         # x = x if low_dim else self.norm(x)
         # x = self.dropout(x)
-        assert len(trans_synergy_list) == len(self.transformer_list), "inputs length is not same with input length for model"
-        trans_synergy_list_linear = []
+        assert len(src_list) == len(self.transformer_list), "inputs length is not same with input length for model"
+        src_list_linear = []
         trg_list_linear = []
         cur_linear = 0
         for i in range(len(self.transformer_list)):
 
-            trans_synergy_list_dim = []
+            src_list_dim = []
             trg_list_dim = []
-            for j in range(trans_synergy_list[i].size(1)):
-                cur_trans_synergy_dim = trans_synergy_list[i][:,j:j+1,:]
+            for j in range(src_list[i].size(1)):
+                cur_src_dim = src_list[i][:,j:j+1,:]
                 cur_trg_dim = trg_list[i][:,j:j+1,:]
-                cur_trans_synergy_processed_dim = self.dropouts[cur_linear](F.relu(self.linear_layers[cur_linear](cur_trans_synergy_dim)))
+                cur_src_processed_dim = self.dropouts[cur_linear](F.relu(self.linear_layers[cur_linear](cur_src_dim)))
                 cur_trg_processed_dim = self.dropouts[cur_linear](F.relu(self.linear_layers[cur_linear](cur_trg_dim)))
-                trans_synergy_list_dim.append(cur_trans_synergy_processed_dim.contiguous().view([-1, setting.d_model_i, setting.d_model_j]))
+                src_list_dim.append(cur_src_processed_dim.contiguous().view([-1, setting.d_model_i, setting.d_model_j]))
                 trg_list_dim.append(cur_trg_processed_dim.contiguous().view([-1, setting.d_model_i, setting.d_model_j]))
                 cur_linear += 1
-            trans_synergy_list_linear.append(cat(tuple(trans_synergy_list_dim), dim = 1))
+            src_list_linear.append(cat(tuple(src_list_dim), dim = 1))
             trg_list_linear.append(cat(tuple(trg_list_dim), dim = 1))
 
         output_list = []
         for i in range(len(self.transformer_list)):
-            trans_synergy_list_linear[i] = torch.transpose(trans_synergy_list_linear[i], -1, -2)
+            src_list_linear[i] = torch.transpose(src_list_linear[i], -1, -2)
             if self.linear_only:
-                batch_size = trans_synergy_list_linear[i].size(0)
-                output_list.append(trans_synergy_list_linear[i].contiguous().view(batch_size, -1))
+                batch_size = src_list_linear[i].size(0)
+                output_list.append(src_list_linear[i].contiguous().view(batch_size, -1))
             else:
                 trg_list_linear[i] = torch.transpose(trg_list_linear[i], -1, -2)
-                output_list.append(self.transformer_list[i](trans_synergy_list_linear[i], trg_list_linear[i], low_dim=low_dim))
+                output_list.append(self.transformer_list[i](src_list_linear[i], trg_list_linear[i], low_dim=low_dim))
         return output_list
 
 class ChemFP(nn.Module):
@@ -196,11 +196,11 @@ class TransposeMultiTransformersPlusLinear(TransposeMultiTransformers):
             self.drug_fp_a = ChemFP(device=self.device1)
             self.drug_fp_b = ChemFP(device=self.device1)
 
-    def forward(self, *trans_synergy_list, drugs = None, trans_synergy_mask=None, trg_mask=None, low_dim = True):
+    def forward(self, *src_list, drugs = None, src_mask=None, trg_mask=None, low_dim = True):
 
-        input_trans_synergy_list = trans_synergy_list
-        input_trg_list = trans_synergy_list[::]
-        output_list = super().forward(input_trans_synergy_list, input_trg_list, low_dim=low_dim)
+        input_src_list = src_list
+        input_trg_list = src_list[::]
+        output_list = super().forward(input_src_list, input_trg_list, low_dim=low_dim)
 
         if drugs is not None and self.drugs_on_the_side:
             sub_drugs_a, sub_drugs_b = drugs[0], drugs[1]
