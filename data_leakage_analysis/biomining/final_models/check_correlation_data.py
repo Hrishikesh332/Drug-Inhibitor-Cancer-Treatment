@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import os
 
 for fold in range(1, 4):       
-    folder = f"../train_fold{fold}"
+    folder = f"../../../external/predicting_synergy_nn/train_final_models/train_fold{fold}"
     train_file = os.path.join(folder, f"fold{fold}_alltrain.csv")
     valid_file = os.path.join(folder, f"fold{fold}_test.csv")
 
