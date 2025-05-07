@@ -1,6 +1,6 @@
 import pandas as pd
 
-df = pd.read_csv("../synergy_score.csv").dropna(subset=["fold"])
+df = pd.read_csv("../../external/drug_combination/data/synergy_score/synergy_score.csv").dropna(subset=["fold"])
 
 df["pair_id"] = df.apply(
     lambda row: "_".join(sorted([row["drug_a_name"], row["drug_b_name"]])) + "_" + row["cell_line"],

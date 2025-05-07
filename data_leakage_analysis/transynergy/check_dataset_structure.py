@@ -47,4 +47,4 @@ def check_structure_synergy(file_path):
     else:
         print("All rows passed structural integrity checks.")
 
-check_structure_synergy("../synergy_score.csv")
+check_structure_synergy("../../external/drug_combination/data/synergy_score/synergy_score.csv")
