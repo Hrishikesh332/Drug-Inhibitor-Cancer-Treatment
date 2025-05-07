@@ -1,6 +1,6 @@
 import pubchempy as pcp
 import logging
-from src import setting
+from trans_synergy import setting
 
 # Setting up log file
 formatter = logging.Formatter(fmt='%(asctime)s %(levelname)s %(name)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S')

@@ -8,7 +8,7 @@ import copy
 from trans_synergy import setting
 from trans_synergy import use_cuda, device2
 from trans_synergy.CustomizedLinear import CustomizedLinear
-from trans_synergy.NeuralFingerPrint.neural_fingerprint import NeuralFingerprint
+from trans_synergy.neural_finger_print.neural_fingerprint import NeuralFingerprint
 from torch import device
 import pandas as pd
 

@@ -1,8 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from trans_synergy.NeuralFingerPrint.graph_degree_conv import GraphDegreeConv
-import pdb
+from trans_synergy.neural_finger_print.graph_degree_conv import GraphDegreeConv
 
 class NeuralFingerprint(nn.Module):
     def __init__(self, node_size, edge_size, conv_layer_sizes, output_size, degree_list, device, batch_normalize=True):

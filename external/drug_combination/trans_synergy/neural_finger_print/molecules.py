@@ -1,5 +1,5 @@
 import rdkit
-import trans_synergy.NeuralFingerPrint.molecule_utils as molecule_utils
+import trans_synergy.neural_finger_print.molecule_utils as molecule_utils
 from collections.abc import Iterable
 import pandas as pd
 from trans_synergy import setting
