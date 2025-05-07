@@ -15,7 +15,7 @@ import shap
 import pickle
 from sklearn.cluster import MiniBatchKMeans
 import wandb
-import trans_synergy.NeuralFingerPrint.data_utils as data_utils
+import trans_synergy.neural_finger_print.data_utils as data_utils
 import concurrent.futures
 import random
 executor = concurrent.futures.ThreadPoolExecutor(max_workers=2)

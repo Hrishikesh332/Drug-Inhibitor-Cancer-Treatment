@@ -3,9 +3,23 @@
 In many patients, a tumor’s innate or acquired resistance to a given therapy will render the treatment ineffective. To increase therapeutic options and to overcome drug resistance, cancer researchers have been actively investigating drug combinations.
 The repository was originally set up for two gpu cards, however we made it so that only one cuda device or none is allowed.
 
-# Dataset
+## Build environment (dependencies)
+1. **Create environment**  
+```bash
+conda create -yn trans_synergy python=3.11
+```
+2. **Activate environment**  
+```bash
+conda activate trans_synergy
+```
+3. **Install package**
+```bash
+pip install -e .
+```
 
-## Download LFS files
+## Dataset
+
+### Download LFS files
 
 Files under `./data` are managed using [Git Large File Storage (Git LFS)](https://git-lfs.github.com/). 
 Follow the instructions below to fetch the LFS data:
@@ -22,43 +36,30 @@ Follow the instructions below to fetch the LFS data:
    git lfs pull
     ```
 
-## Download processed synergy score files
+### Download processed synergy score files
 ```bash
 zenodo_get 10.5281/zenodo.4789936 -o ./data/synergy_score
 ```
 
-## Build environment (dependencies)
-1. **Create environment**  
-```bash
-conda create -yn trans_synergy python=3.11
-```
-2. **Activate environment**  
-```bash
-conda activate trans_synergy
-```
-3. **Install package**
-```bash
-pip install -e .
-```
 ## Check model performance with differnt cell line features (gene dependencies, gene expression and netexpress scores)
 ### gene dependencies
 ```
-cp setting_gene_dependencies.py setting.py
+cp trans_synergy/setting_gene_dependencies.py trans_synergy/setting.py
 ```
 
 ### gene expression
 ```
-cp setting_gene_expression.py setting.py
+cp trans_synergy/setting_gene_expression.py trans_synergy/setting.py
 ```
 
 ### netexpress
 ```
-cp setting_net.py setting.py
+cp trans_synergy/setting_net.py trans_synergy/setting.py
 ```
 
 # Run 
 ```
-python ./attention_main.py
+python attention_main.py
 ```
 #### check results
 check the logfile in the newest ```_run_*****``` folder
