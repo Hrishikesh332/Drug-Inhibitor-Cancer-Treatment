@@ -10,7 +10,7 @@ authors = [
   { name = "Nadir Bašić", email = "basicnadir@gmail.com" },
   { name = "Hriskikesh Yadav", email = "hriskikesh.yadav332@gmail.com" },
   { name = "Catarina Freire", email = "catarinaxfreire@gmail.com" },
-  { name = "Rajan", email = "rjnunofficial001@gmail.com" },
+  { name = "Rajan Puri", email = "rjnunofficial001@gmail.com" },
   { name = "Nina Zukowska", email = "zukowskanina1@gmail.com" },
 ]
 readme = "README.md"
@@ -18,7 +18,6 @@ requires-python = ">=3.11"
 dependencies = [
   "pandas==2.0.3",
   "numpy==1.24.4",
-  "torch==2.4.1",
   "tqdm==4.67.1",
   "zenodo-get==1.6.1",
   "wandb==0.19.10",

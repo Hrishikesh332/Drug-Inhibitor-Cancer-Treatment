@@ -4,6 +4,8 @@ In many patients, a tumor’s innate or acquired resistance to a given therapy w
 The repository was originally set up for two gpu cards, however we made it so that only one cuda device or none is allowed.
 
 ## Build environment (dependencies)
+
+**❗CPU-only instructions, if you have a GPU, skip to [4. GPU Compatibility](#gpu-compatibility)**
 1. **Create environment**  
 ```bash
 conda create -yn trans_synergy python=3.11
@@ -16,6 +18,37 @@ conda activate trans_synergy
 ```bash
 pip install -e .
 ```
+
+4. **GPU Compatibility**  
+To ensure GPU compatibility, follow these steps:
+
+    4.1. **Check Your CUDA Version**  
+    Run the following command to check your installed CUDA version:
+    ```bash
+    nvidia-smi
+    ```
+    4.2. **Download the Correct PyTorch Version**  
+    Based on your CUDA version, download the compatible PyTorch version as specified in `pyproject.toml`. Visit the official PyTorch page for previous versions:  
+    [PyTorch Previous Versions](https://pytorch.org/get-started/previous-versions/)
+
+    4.3 **Example Setup for CUDA 12.4**
+    The last line is the difference to the cpu-only setup.
+    ```bash
+    conda create -yn trans_synergy python=3.11
+    conda activate trans_synergy
+    conda install pytorch==2.4.1 pytorch-cuda=12.4 -c pytorch -c nvidia 
+    ```
+    Then, rename the GPU-specific pyproject file:
+    ```bash
+    mv pyproject.toml.for_gpu pyproject.toml
+    ```
+    The only difference here is the torch version is not specified, since we already installed the gpu-specific version.
+
+    4.4 **Install package**
+    ```bash
+    pip install -e .
+    ```
+
 
 ## Dataset
 
