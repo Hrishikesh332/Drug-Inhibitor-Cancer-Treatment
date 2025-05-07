@@ -1,6 +1,8 @@
 import time
+
 import torch
 import torch.nn.functional as F
+
 
 def train_model(model, opt):
     print("training model...")

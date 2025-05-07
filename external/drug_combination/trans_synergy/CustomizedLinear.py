@@ -6,6 +6,7 @@ extended torch.nn module which cusmize connection.
 This code base on https://pytorch.org/docs/stable/notes/extending.html
 """
 import math
+
 import torch
 import torch.nn as nn
 from torch.nn import functional as F

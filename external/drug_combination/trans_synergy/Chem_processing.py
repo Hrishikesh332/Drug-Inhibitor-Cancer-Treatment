@@ -1,5 +1,7 @@
-import pubchempy as pcp
 import logging
+
+import pubchempy as pcp
+
 from trans_synergy import setting
 
 # Setting up log file

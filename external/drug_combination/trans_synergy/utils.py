@@ -1,6 +1,7 @@
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
 
+
 def uniprot2gene(uniprotIDs):
 
     from urllib import parse, request

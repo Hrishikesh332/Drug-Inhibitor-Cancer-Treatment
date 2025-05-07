@@ -1,7 +1,9 @@
+import pdb
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import pdb
+
 
 class GraphDegreeConv(nn.Module):
     def __init__(self, node_size, edge_size, output_size, degree_list, device, batch_normalize=True):

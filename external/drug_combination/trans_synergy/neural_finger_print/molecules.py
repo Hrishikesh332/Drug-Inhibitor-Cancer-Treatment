@@ -1,7 +1,9 @@
-import rdkit
-import trans_synergy.neural_finger_print.molecule_utils as molecule_utils
 from collections.abc import Iterable
+
 import pandas as pd
+import rdkit
+
+import trans_synergy.neural_finger_print.molecule_utils as molecule_utils
 from trans_synergy import setting
 
 degrees = [0, 1, 2, 3, 4, 5]

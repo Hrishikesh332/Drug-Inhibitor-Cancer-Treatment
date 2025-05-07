@@ -1,8 +1,10 @@
-from trans_synergy import setting
-import os
-from torch import cuda, device
-import torch
 import logging
+import os
+
+import torch
+from torch import cuda, device
+
+from trans_synergy import setting
 
 # if not setting.ml_train:
 #     os.environ["CUDA_VISIBLE_DEVICES"] = "2"

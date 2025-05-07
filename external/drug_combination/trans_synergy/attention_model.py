@@ -1,16 +1,17 @@
-import torch.nn as nn
-from torch import cat
-import torch
-import torch.nn.functional as F
-from trans_synergy.Layers import EncoderLayer, DecoderLayer
-from trans_synergy.Sublayers import Norm, OutputFeedForward
 import copy
-from trans_synergy import setting
-from trans_synergy import use_cuda, device2
-from trans_synergy.CustomizedLinear import CustomizedLinear
-from trans_synergy.neural_finger_print.neural_fingerprint import NeuralFingerprint
-from torch import device
+
 import pandas as pd
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from torch import cat, device
+
+from trans_synergy import device2, setting, use_cuda
+from trans_synergy.CustomizedLinear import CustomizedLinear
+from trans_synergy.Layers import DecoderLayer, EncoderLayer
+from trans_synergy.neural_finger_print.neural_fingerprint import \
+    NeuralFingerprint
+from trans_synergy.Sublayers import Norm, OutputFeedForward
 
 
 def get_clones(module, N):

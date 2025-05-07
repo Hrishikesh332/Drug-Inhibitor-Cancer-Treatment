@@ -1,10 +1,12 @@
-from scipy.sparse import csr_matrix
-import pandas as pd
-import numpy as np
-from trans_synergy import setting
-import os
 import logging
+import os
 import pdb
+
+import numpy as np
+import pandas as pd
+from scipy.sparse import csr_matrix
+
+from trans_synergy import setting
 
 # Setting up log file
 formatter = logging.Formatter(fmt='%(asctime)s %(levelname)s %(name)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S')
@@ -205,6 +207,7 @@ def RWlike_network_propagation(network, drug_target, entrez_set, result_matrix_f
 def random_walk_network_propagation(result_matrix_file):
 
     import subprocess
+
     # input drug_target matrix: index = genes, columns = drugs
     if setting.renew or not os.path.exists(result_matrix_file):
 
@@ -229,9 +232,10 @@ def random_walk_network_propagation(result_matrix_file):
 def pyNBS_random_walk():
 
 
-    from pyNBS import network_propagation as NBS_propagation
-    from src.setting import network, drug_profiles, random_walk_simulated_result_matrix, network_path, genes
     import networkx as nx
+    from pyNBS import network_propagation as NBS_propagation
+    from src.setting import (drug_profiles, genes, network, network_path,
+                             random_walk_simulated_result_matrix)
     from src.utils import standarize_dataframe
 
     # build the matrix from gene gene interaction network, so far

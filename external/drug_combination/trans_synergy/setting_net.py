@@ -1,6 +1,6 @@
 import os
-from time import time
 import shutil
+from time import time
 
 unit_test = False
 

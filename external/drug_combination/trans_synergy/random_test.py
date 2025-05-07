@@ -1,13 +1,14 @@
-import torch
+import logging
+import os
+from time import time
+
 import numpy as np
 import pandas as pd
-import logging
-from src import model, drug_drug, setting, my_data
+import torch
 from scipy.stats import pearsonr
 from sklearn.metrics import mean_squared_error
 from sklearn.preprocessing import StandardScaler
-import os
-from time import time
+from src import drug_drug, model, my_data, setting
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

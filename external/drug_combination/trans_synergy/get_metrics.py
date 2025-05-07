@@ -1,8 +1,9 @@
-import pandas as pd
-from torch import load
 import argparse
+
 import numpy as np
-from sklearn.metrics import roc_auc_score, average_precision_score
+import pandas as pd
+from sklearn.metrics import average_precision_score, roc_auc_score
+from torch import load
 
 parser = argparse.ArgumentParser(description='Get_stats_from_prediction')
 parser.add_argument('--prediction_file')
