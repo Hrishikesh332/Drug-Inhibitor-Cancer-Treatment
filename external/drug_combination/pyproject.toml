@@ -23,14 +23,18 @@ dependencies = [
   "wandb==0.19.10",
   "shap==0.44.1" ,
   "rdkit==2024.3.5",
+  "pubchempy==1.0.4",
+  "matplotlib==3.10.0",
+  "seaborn==0.13.2",
+  "fire==0.7.0",
+  "h2o==3.46.0.7",
   "torch",
+  # "pyNBS==1.1.0",  # Not on PyPI! Only used for preprocessing.
 ]
 
 [project.optional-dependencies]
 dev = [
   "jupyter",
-  "matplotlib",
-  "seaborn",
   "isort==5.13.2",
   "ruff==0.11.8",
   "flake8==7.1.2"

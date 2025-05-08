@@ -2,14 +2,12 @@ import logging
 
 import pubchempy as pcp
 
-from trans_synergy import setting
+import trans_synergy.settings
+
+setting = trans_synergy.settings.get()
 
 # Setting up log file
-formatter = logging.Formatter(fmt='%(asctime)s %(levelname)s %(name)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S')
-fh = logging.FileHandler(setting.run_specific_log, mode='a')
-fh.setFormatter(fmt=formatter)
 logger = logging.getLogger("Processing chemicals")
-logger.addHandler(fh)
 logger.setLevel(logging.DEBUG)
 
 def smile2ichikey(smile):
@@ -37,6 +35,5 @@ def smile2ichi(smile):
         else:
             logging.info("Found more than one inchikey")
             return [x.inchikey for x in compounds]
-
     except:
         return None

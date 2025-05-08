@@ -8,7 +8,13 @@ import torch
 from scipy.stats import pearsonr
 from sklearn.metrics import mean_squared_error
 from sklearn.preprocessing import StandardScaler
-from src import drug_drug, model, my_data, setting
+
+import trans_synergy.settings
+from trans_synergy import models
+from trans_synergy.data import trans_synergy_data
+from trans_synergy.models.other import drug_drug
+
+setting = trans_synergy.settings.get()
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -105,15 +111,15 @@ if __name__ == "__main__":
     std_scaler = StandardScaler()
     logger.debug("Getting features and synergy scores ...")
     X, drug_features_len, cl_features_len, drug_features_name, cl_features_name = \
-        my_data.SamplesDataLoader.Raw_X_features_prep(methods='mlp')
-    Y = my_data.SamplesDataLoader.Y_features_prep()
+        trans_synergy_data.SamplesDataLoader.Raw_X_features_prep(methods='mlp')
+    Y = trans_synergy_data.SamplesDataLoader.Y_features_prep()
     logger.debug("Spliting data ...")
 
     cv_pearsonr_scores = []
     cvmodels = []
     best_test_index, best_test_index_2 = None, None
     for train_index, test_index, test_index_2, evaluation_index, evaluation_index_2 in\
-        my_data.DataPreprocessor.cv_train_eval_test_split_generator():
+        trans_synergy_data.DataPreprocessor.cv_train_eval_test_split_generator():
 
         logger.debug("Splitted data successfully")
         std_scaler.fit(Y[train_index])
@@ -131,9 +137,9 @@ if __name__ == "__main__":
         else:
 
             # Creating and compiling the model using the new `DrugsCombModel` class
-            drug_model = model.DrugsCombModel(drug_a_features_len=drug_features_len,
-                                              drug_b_features_len=drug_features_len,
-                                              cl_features_len=cl_features_len).get_model()
+            drug_model = models.DrugsCombModel(drug_a_features_len=drug_features_len,
+                                               drug_b_features_len=drug_features_len,
+                                               cl_features_len=cl_features_len).get_model()
 
             logger.info("model information: \n %s" % drug_model)
             logger.debug("Start training")

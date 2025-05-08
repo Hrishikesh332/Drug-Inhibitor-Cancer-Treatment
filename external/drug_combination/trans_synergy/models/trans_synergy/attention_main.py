@@ -1,4 +1,4 @@
-import concurrent.futures
+import logging
 import pickle
 import random
 from os import environ, mkdir, path, sep
@@ -8,7 +8,6 @@ import pandas as pd
 import shap
 import torch
 import torch.nn.functional as F
-import wandb
 from scipy.stats import pearsonr, spearmanr
 from sklearn.cluster import MiniBatchKMeans
 from sklearn.metrics import mean_squared_error
@@ -17,13 +16,19 @@ from torch import load, save
 from torch.utils import data
 from tqdm import tqdm
 
-import trans_synergy.neural_finger_print.data_utils as data_utils
-from trans_synergy import (attention_model, device2, drug_drug, logger,
-                           my_data, setting)
+import trans_synergy.data.trans_synergy_data
+import trans_synergy.settings
+import wandb
+from trans_synergy import device2
+from trans_synergy.models.other import drug_drug
+from trans_synergy.models.trans_synergy import attention_model
 
-executor = concurrent.futures.ThreadPoolExecutor(max_workers=2)
+setting = trans_synergy.settings.get()
 
+logger = logging.getLogger(__name__)
 random_seed = 913
+
+
 
 def set_seed(seed=random_seed):
     torch.backends.cudnn.deterministic = True
@@ -39,13 +44,14 @@ def get_final_index():
     if not setting.update_final_index and path.exists(setting.final_index):
         final_index = pd.read_csv(setting.final_index, header=None)[0]
     else:
-        final_index = my_data.SynergyDataReader.get_final_index()
+        final_index = trans_synergy.data.trans_synergy_data.SynergyDataReader.get_final_index()
     return final_index
 
 def prepare_data():
 
     if not setting.update_xy:
-        assert (path.exists(setting.old_x) and path.exists(setting.old_y)), "Data need to be downloaded from zenodo follow instruction in README"
+        assert (path.exists(setting.old_x) and path.exists(
+            setting.old_y)), "Data need to be downloaded from zenodo follow instruction in README"
         X = np.load(setting.old_x)
         with open(setting.old_x_lengths, 'rb') as old_x_lengths:
             drug_features_length, cellline_features_length = pickle.load(old_x_lengths)
@@ -53,18 +59,18 @@ def prepare_data():
             Y = pickle.load(old_y)
     else:
         X, drug_features_length, cellline_features_length = \
-            my_data.SamplesDataLoader.Raw_X_features_prep(methods='flexible_attn')
+            trans_synergy.data.trans_synergy_data.SamplesDataLoader.Raw_X_features_prep(methods='flexible_attn')
         np.save(setting.old_x, X)
         with open(setting.old_x_lengths, 'wb+') as old_x_lengths:
             pickle.dump((drug_features_length,cellline_features_length), old_x_lengths)
 
-        Y = my_data.SamplesDataLoader.Y_features_prep()
+        Y = trans_synergy.data.trans_synergy_data.SamplesDataLoader.Y_features_prep()
         with open(setting.old_y, 'wb+') as old_y:
             pickle.dump(Y, old_y)
     return X, Y, drug_features_length, cellline_features_length
 
 
-def prepare_model(reorder_tensor, entrez_set):
+def prepare_model(reorder_tensor):
 
     ### prepare two models
     ### drug_model: the one used for training
@@ -94,24 +100,24 @@ def prepare_splitted_dataset(partition, labels, loaded_data):
     logger.debug("Preparing datasets ... ")
 
     # Training dataset and generator
-    training_set = my_data.MyDataset(partition['train'], labels, loaded_data)
+    training_set = trans_synergy.data.trans_synergy_data.TransSynergyDataset(partition['train'], labels, loaded_data)
     train_params = {'batch_size': setting.batch_size, 'shuffle': True}
     training_generator = data.DataLoader(training_set, **train_params)
 
     # Evaluation training dataset and generator (train + eval1 + eval2)
-    eval_train_set = my_data.MyDataset(np.concatenate([partition['train'], partition['eval1'], partition['eval2']]), labels, loaded_data)
+    eval_train_set = trans_synergy.data.trans_synergy_data.TransSynergyDataset(np.concatenate([partition['train'], partition['eval1'], partition['eval2']]), labels, loaded_data)
     training_index_list = np.concatenate([partition['train'], partition['eval1'], partition['eval2']])
     logger.debug(f"Training data length: {len(training_index_list)}")
     eval_train_params = {'batch_size': setting.batch_size, 'shuffle': False}
     eval_train_generator = data.DataLoader(eval_train_set, **eval_train_params)
 
     # Validation dataset and generator (eval1)
-    validation_set = my_data.MyDataset(partition['eval1'], labels, loaded_data)
+    validation_set = trans_synergy.data.trans_synergy_data.TransSynergyDataset(partition['eval1'], labels, loaded_data)
     eval_params = {'batch_size': len(partition['test1']) // 4, 'shuffle': False}
     validation_generator = data.DataLoader(validation_set, **eval_params)
 
     # Test dataset and generator (test1)
-    test_set = my_data.MyDataset(partition['test1'], labels, loaded_data)
+    test_set = trans_synergy.data.trans_synergy_data.TransSynergyDataset(partition['test1'], labels, loaded_data)
     test_index_list = partition['test1']
     logger.debug(f"Test data length: {len(test_index_list)}")
     pickle.dump(test_index_list, open("test_index_list", "wb+"))
@@ -120,7 +126,7 @@ def prepare_splitted_dataset(partition, labels, loaded_data):
 
     # All dataset and generator (train + eval1 + test1)
     all_index_list = np.concatenate([partition['train'][:len(partition['train']) // 2], partition['eval1'], partition['test1']])
-    all_set = my_data.MyDataset(all_index_list, labels, loaded_data)
+    all_set = trans_synergy.data.trans_synergy_data.TransSynergyDataset(all_index_list, labels, loaded_data)
     logger.debug(f"All data length: {len(set(all_index_list))}")
     pickle.dump(all_index_list, open("all_index_list", "wb+"))
     all_set_params = {'batch_size': len(all_index_list) // 8, 'shuffle': False}
@@ -133,10 +139,9 @@ def prepare_splitted_dataset(partition, labels, loaded_data):
     return (training_generator, eval_train_generator, validation_generator,
             test_generator, all_data_generator, all_data_generator_total)
 
-def run():
-
-    ## get genes
-    entrez_set = my_data.GenesDataReader.get_gene_entrez_set()
+def run(use_wandb: bool):
+    if not use_wandb:
+        environ["WANDB_MODE"] = "dryrun"
 
     std_scaler = StandardScaler()
     logger.debug("Getting features and synergy scores ...")
@@ -145,10 +150,10 @@ def run():
 
     logger.debug("Preparing models")
     slice_indices = drug_features_length + drug_features_length + cellline_features_length
-    reorder_tensor = drug_drug.reorganize_tensor(slice_indices, setting.arrangement, 2)
+    reorder_tensor = drug_drug.TensorReorganizer(slice_indices, setting.arrangement, 2)
     logger.debug("the layout of all features is {!r}".format(reorder_tensor.get_reordered_slice_indices()))
     set_seed()
-    drug_model, best_drug_model = prepare_model(reorder_tensor, entrez_set)
+    drug_model, best_drug_model = prepare_model(reorder_tensor)
 
     optimizer = torch.optim.Adam(drug_model.parameters(), lr=setting.start_lr, weight_decay=setting.lr_decay,
                                  betas=(0.9, 0.98), eps=1e-9)
@@ -162,18 +167,18 @@ def run():
     best_cv_pearson_score = 0
     partition = None
 
-    split_func = my_data.DataPreprocessor.reg_train_eval_test_split
+    split_func = trans_synergy.data.trans_synergy_data.DataPreprocessor.reg_train_eval_test_split
 
         
     for fold_idx, (train_index, test_index, test_index_2, evaluation_index, evaluation_index_2) in enumerate(
             tqdm(split_func(fold='fold', test_fold=4), desc="Folds", total=1) # the original code calls for this only
         ):
         
-        if USE_wandb:
+        if use_wandb:
             wandb.init(project=f"Drug combination alpha_fold_{fold_idx}",
-                    name = path.basename(setting.run_dir).rsplit(sep, 1)[-1] + '_' + setting.data_specific[:15] + '_' + str(random_seed),
+                       name =path.basename(setting.run_dir).rsplit(sep, 1)[-1] + '_' + setting.data_specific[:15] + '_' + str(random_seed),
 
-                    notes=setting.data_specific)
+                       notes=setting.data_specific)
             wandb.define_metric("Train Loss", step_metric="Epoch")
             wandb.define_metric("Validation Loss", step_metric="Epoch")
         # local_X = X[np.concatenate((train_index, test_index, test_index_2, evaluation_index, evaluation_index_2))]
@@ -274,7 +279,7 @@ def run():
                 val_loss = mean_squared_error(all_preds, all_ys)
                 val_pearson = pearsonr(all_preds.reshape(-1), all_ys.reshape(-1))[0]
                 val_spearman = spearmanr(all_preds.reshape(-1), all_ys.reshape(-1))[0]
-                if USE_wandb:
+                if use_wandb:
                     wandb.log({
                         "Train Loss": avg_train_loss,
                         "Validation Loss": val_loss,
@@ -298,7 +303,7 @@ def run():
             logger.info(
                 "Validation mse is {0}, Validation pearson correlation is {1!r}, Validation spearman correlation is {2!r}"
                     .format(np.mean(val_loss), val_pearson, val_spearman))
-        if USE_wandb:
+        if use_wandb:
             wandb.finish()
 
     wandb.init(project="Drug combination alpha_fold - Testing best model",)
@@ -345,7 +350,7 @@ def run():
         save(np.concatenate((np.array(test_index_list[:sample_size]).reshape(-1,1), all_preds.reshape(-1, 1), all_ys.reshape(-1, 1)), axis=1),
              "prediction/prediction_" + setting.catoutput_output_type + "_testing")
         
-        if USE_wandb:
+        if use_wandb:
             wandb.log({
                 "Test Loss": test_loss,
                 "Test Pearson": test_pearson,
@@ -426,22 +431,4 @@ def run():
         pickle.dump(batch_transform_input_importance, open(setting.transform_input_importance_path, 'wb+'))
 
 
-
-if __name__ == "__main__":
-
-    USE_wandb = True
-    if USE_wandb:
-        pass
-    else:
-        environ["WANDB_MODE"] = "dryrun"
-
-    try:
-        run()
-        logger.debug("new directory %s" % setting.run_dir)
-
-    except:
-
-        import shutil
-        logger.debug("clean directory %s" % setting.run_dir)
-        raise
 
