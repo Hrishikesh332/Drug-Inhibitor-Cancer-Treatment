@@ -25,6 +25,10 @@ Example Setup for CUDA 12.4:
 ```bash
 conda install pytorch==2.4.1 pytorch-cuda=12.4 -c pytorch -c nvidia 
 ```
+Example Setup for CPU-only:
+```bash
+conda install pytorch==2.4.1 cpuonly -c pytorch
+```
 
 ### 4. Install package
 ```bash
