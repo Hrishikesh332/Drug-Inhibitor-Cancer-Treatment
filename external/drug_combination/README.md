@@ -1,54 +1,87 @@
 # Motivation
 
 In many patients, a tumor’s innate or acquired resistance to a given therapy will render the treatment ineffective. To increase therapeutic options and to overcome drug resistance, cancer researchers have been actively investigating drug combinations.
+The repository was originally set up for two gpu cards, however we made it so that only one cuda device or none is allowed.
 
-Thsi repository was originally set up for two gpu cards, however we made it so that only one cuda device or none is allowed.
-#TODO: I also believe that there was an error in readme and in gitignore to paste the dataset into src? I pasted it into data/ it should be working i think, but we'll see.
 ## Build environment (dependencies)
-**we changed this to fit not only to linux, but be cross platform**
-```
-mamba env create -f environment.yml
-```
-** if you are a conda user, you can set up mamba (for faster environment building) like follows:
 
+### 1. Create environment
+```bash
+conda create -yn trans_synergy python=3.11
 ```
-conda install mamba -n base -c conda-forge
+### 2. Activate environment
+```bash
+conda activate trans_synergy
+```
+### 3. Install PyTorch
+Based on your environment, install a compatible PyTorch version: [PyTorch Get Started](https://pytorch.org/get-started/locally/). 
+Visit the official PyTorch page for previous versions:  
+[PyTorch Previous Versions](https://pytorch.org/get-started/previous-versions/)<br>
+If you use CUDA, you can run the following command to check your installed CUDA version:
+```bash
+nvidia-smi      
+```
+Example Setup for CUDA 12.4:
+```bash
+conda install pytorch==2.4.1 pytorch-cuda=12.4 -c pytorch -c nvidia 
+```
+Example Setup for CPU-only:
+```bash
+conda install pytorch==2.4.1 cpuonly -c pytorch
+```
 
+### 4. Install package
+```bash
+pip install -e .
 ```
+
+## Dataset
+
+### Download LFS files
+
+Files under `./data` are managed using [Git Large File Storage (Git LFS)](https://git-lfs.github.com/). 
+Follow the instructions below to fetch the LFS data:
+
+1. **Install Git LFS**  
+   Follow the instructions at: https://git-lfs.github.com/
+
+2. **Initialize Git LFS (run once per system)**  
+   ```bash
+   git lfs install
+    ```
+3. **Pull files**
+   ```bash
+   git lfs pull
+    ```
+
+### Download processed synergy score files
+```bash
+zenodo_get 10.5281/zenodo.4789936 -o ./data/synergy_score
+```
+
 ## Check model performance with differnt cell line features (gene dependencies, gene expression and netexpress scores)
 ### gene dependencies
 ```
-cp setting_gene_dependencies.py setting.py
+cp trans_synergy/setting_gene_dependencies.py trans_synergy/setting.py
 ```
 
 ### gene expression
 ```
-cp setting_gene_expression.py setting.py
+cp trans_synergy/setting_gene_expression.py trans_synergy/setting.py
 ```
 
 ### netexpress
 ```
-cp setting_net.py setting.py
+cp trans_synergy/setting_net.py trans_synergy/setting.py
 ```
 
-# Run 
+## Run training
 ```
-python ./attention_main.py
+python attention_main.py
 ```
-#### check results
+#### Check results
 check the logfile in the newest ```_run_*****``` folder
 
-# Dataset
-
-### Download processed dataset
-#### 1. Install zenodo-get
-```
-pip install zenodo-get
-```
-#### 2. Download data to data/synergy_score file
-```
-zenodo_get 10.5281/zenodo.4789936
-```
 ## Drug combination Synergy scores
 
 #### An Unbiased Oncology Compound Screen to Identify Novel Combination Strategies. (O'Neil J et. al)

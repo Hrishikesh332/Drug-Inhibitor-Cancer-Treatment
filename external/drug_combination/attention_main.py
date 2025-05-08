@@ -1,23 +1,26 @@
-#!/usr/bin/env python
-from tqdm import tqdm
+import concurrent.futures
+import pickle
+import random
+from os import environ, mkdir, path, sep
+
 import numpy as np
 import pandas as pd
-from os import path, mkdir, environ
+import shap
 import torch
-from torch import save, load
-from torch.utils import data
-from src import attention_model, drug_drug, setting, my_data, logger, device2
 import torch.nn.functional as F
+import wandb
 from scipy.stats import pearsonr, spearmanr
+from sklearn.cluster import MiniBatchKMeans
 from sklearn.metrics import mean_squared_error
 from sklearn.preprocessing import StandardScaler
-import shap
-import pickle
-from sklearn.cluster import MiniBatchKMeans
-import wandb
-import src.NeuralFingerPrint.data_utils as data_utils
-import concurrent.futures
-import random
+from torch import load, save
+from torch.utils import data
+from tqdm import tqdm
+
+import trans_synergy.neural_finger_print.data_utils as data_utils
+from trans_synergy import (attention_model, device2, drug_drug, logger,
+                           my_data, setting)
+
 executor = concurrent.futures.ThreadPoolExecutor(max_workers=2)
 
 random_seed = 913
@@ -168,7 +171,8 @@ def run():
         
         if USE_wandb:
             wandb.init(project=f"Drug combination alpha_fold_{fold_idx}",
-                    name=setting.run_dir.rsplit('\\', 1)[1] + '_' + setting.data_specific[:15] + '_' + str(random_seed),
+                    name = path.basename(setting.run_dir).rsplit(sep, 1)[-1] + '_' + setting.data_specific[:15] + '_' + str(random_seed),
+
                     notes=setting.data_specific)
             wandb.define_metric("Train Loss", step_metric="Epoch")
             wandb.define_metric("Validation Loss", step_metric="Epoch")
