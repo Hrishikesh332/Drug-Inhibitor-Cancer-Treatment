@@ -1,5 +1,9 @@
 numpy
 pandas
+matplotlib
+torch
+tqdm
 scikit-learn
-tensorflow
-keras
+wandb
+pyyaml
+scipy
