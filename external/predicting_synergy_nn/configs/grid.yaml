@@ -1,0 +1,24 @@
+fold: 1
+split: 1
+batch: 100
+max_ep: 500
+data_dir: data
+out_dir: outputs
+use_wb: true
+wb_proj: synergy-grid
+
+# Grid search parameters
+lr:
+  - 1e-5
+  - 5e-5
+  - 1e-4
+  - 5e-4
+
+arch:
+  - std
+  - fold2
+  - fold3
+
+drop:
+  - 0.3
+  - 0.5
