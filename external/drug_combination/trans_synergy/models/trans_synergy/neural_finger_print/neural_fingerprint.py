@@ -2,7 +2,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from trans_synergy.neural_finger_print.graph_degree_conv import GraphDegreeConv
+from trans_synergy.models.trans_synergy.neural_finger_print.graph_degree_conv import \
+    GraphDegreeConv
 
 
 class NeuralFingerprint(nn.Module):

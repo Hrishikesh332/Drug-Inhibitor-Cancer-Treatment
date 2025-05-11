@@ -6,11 +6,12 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 from matplotlib import rcParams
-from src import shap_analysis_setting
 from torch import load
 
+from trans_synergy.explainability import shap_analysis_setting
 
-class SHAP_ANALYSIS:
+
+class SHAPAnalysis:
 
     drug_target = None
     def __init__(self, data, index_list, genes):
@@ -124,13 +125,13 @@ if __name__ == "__main__":
     importance_data = pickle.load(open(shap_analysis_setting.importance_files[0], 'rb'))
     index_list = pickle.load(open(shap_analysis_setting.all_index_list_file, 'rb'))
 
-    shap_analysis_cls = SHAP_ANALYSIS(importance_data, index_list, genes_symbols)
+    shap_analysis = SHAPAnalysis(importance_data, index_list, genes_symbols)
     count = 0
     for drug_combine in testing_df['combination']:
         if count>50:
             break
         if drug_combine in index_list:
-            shap_analysis_cls.plot_gene_wise_shap(drug_combine)
+            shap_analysis.plot_gene_wise_shap(drug_combine)
             count+=1
 
 

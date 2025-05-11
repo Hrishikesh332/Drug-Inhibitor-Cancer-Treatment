@@ -1,5 +1,7 @@
 import os
 
+# TODO: seems like this should work with ./data, not cwd. Also, cannot find shap_analysis_dat anywhere!
+
 cwd = os.getcwd()
 prediction_training = os.path.join(cwd, "shap_analysis_dat/prediction_nest_label_2401_0.5_dedup_norm_drug_norm_net_dt_training")
 prediction_testing = os.path.join(cwd, "shap_analysis_dat/prediction_nest_label_2401_0.5_dedup_norm_drug_norm_net_dt_testing")

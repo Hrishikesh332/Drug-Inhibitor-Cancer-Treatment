@@ -1,8 +1,9 @@
 import torch
 import torch.nn as nn
 
-from trans_synergy.Sublayers import (FeedForward, MultiHeadAttention, Norm,
-                                     attention)
+from trans_synergy.models.trans_synergy.sublayers import (FeedForward,
+                                                          MultiHeadAttention,
+                                                          Norm, attention)
 
 
 class EncoderLayer(nn.Module):

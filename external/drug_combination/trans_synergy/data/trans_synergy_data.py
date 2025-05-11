@@ -1,15 +1,19 @@
+import logging
 from os import mkdir, path
 
 import numpy as np
 import pandas as pd
-import torch
 from sklearn.preprocessing import StandardScaler
 from torch import save
 from torch.utils import data
-from tqdm import tqdm
 
-from trans_synergy import drug_drug, logger, network_propagation, setting
+import trans_synergy.settings
+from trans_synergy.data import network_propagation
+from trans_synergy.models.other import drug_drug
 
+setting = trans_synergy.settings.get()
+
+logger = logging.getLogger(__name__)
 
 class CustomDataLoader:
     pass
@@ -113,7 +117,7 @@ class DrugTargetProfileDataLoader(CustomDataLoader):
     @classmethod
     def __raw_drug_target_initializer(cls):
         if cls.raw_drug_target_profile is None:
-            cls.raw_drug_target_profile = pd.read_csv(setting.working_dir + "/chemicals/raw_chemicals.csv")
+            cls.raw_drug_target_profile = pd.read_csv(setting.raw_drug_target_profile_path)
             assert {'Name', 'combin_entrez'}.issubset(set(cls.raw_drug_target_profile.columns)), \
                 "Name and combin_entrez should be in raw_drug_target_profile columns names"
 
@@ -330,7 +334,7 @@ class GeneDependenciesDataReader(CustomDataReader):
     @classmethod
     def __initialize_genes_dp_indexes(cls):
         if cls.genes_dp_indexes is None:
-            cls.genes_dp_indexes = pd.read_csv(setting.working_dir + "/data/cl_gene_dp/all_dependencies_genes_map.csv",
+            cls.genes_dp_indexes = pd.read_csv(setting.genes_dp_indexes_path,
                                                usecols=['symbol', 'entrez'], dtype={'entrez': np.int64})
     @classmethod
     def __initialize_genes_dp(cls):
@@ -1203,7 +1207,7 @@ class DataPreprocessor:
             yield train_index, test_index, test_index_2, evaluation_index, evaluation_index_2
 
 
-class MyDataset(data.Dataset):
+class TransSynergyDataset(data.Dataset):
     synergy_score = None
     drug_smile = None
     'Characterizes a dataset for PyTorch'
@@ -1230,21 +1234,21 @@ class MyDataset(data.Dataset):
         
     def _load_synergy_score(self):
         """Load synergy score data if it's not already loaded."""
-        if MyDataset.synergy_score is None:
+        if TransSynergyDataset.synergy_score is None:
             print('Preparing synergy score...')
-            MyDataset.synergy_score = SynergyDataReader.get_synergy_score()
-            synergy_score_reverse = MyDataset.synergy_score.copy()
-            synergy_score_reverse['drug_a_name'] = MyDataset.synergy_score['drug_b_name']
-            synergy_score_reverse['drug_b_name'] = MyDataset.synergy_score['drug_a_name']
-            MyDataset.synergy_score = pd.concat([MyDataset.synergy_score, synergy_score_reverse])
-            MyDataset.synergy_score.reset_index(inplace=True)
+            TransSynergyDataset.synergy_score = SynergyDataReader.get_synergy_score()
+            synergy_score_reverse = TransSynergyDataset.synergy_score.copy()
+            synergy_score_reverse['drug_a_name'] = TransSynergyDataset.synergy_score['drug_b_name']
+            synergy_score_reverse['drug_b_name'] = TransSynergyDataset.synergy_score['drug_a_name']
+            TransSynergyDataset.synergy_score = pd.concat([TransSynergyDataset.synergy_score, synergy_score_reverse])
+            TransSynergyDataset.synergy_score.reset_index(inplace=True)
             
     def _load_drug_smiles(self):
         """Load drug smile data if it's not already loaded."""
-        if MyDataset.drug_smile is None:
+        if TransSynergyDataset.drug_smile is None:
             print('Preparing drug smiles...')
             name_smile_df = pd.read_csv(setting.inchi_merck)
-            MyDataset.drug_smile = {name: smile for name, smile in zip(name_smile_df['Name'], name_smile_df['SMILE'])}
+            TransSynergyDataset.drug_smile = {name: smile for name, smile in zip(name_smile_df['Name'], name_smile_df['SMILE'])}
 
     
     def __len__(self):

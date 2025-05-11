@@ -59,26 +59,21 @@ Follow the instructions below to fetch the LFS data:
 zenodo_get 10.5281/zenodo.4789936 -o ./data/synergy_score
 ```
 
-## Check model performance with differnt cell line features (gene dependencies, gene expression and netexpress scores)
-### gene dependencies
-```
-cp trans_synergy/setting_gene_dependencies.py trans_synergy/setting.py
-```
+## Check model performance with 
 
-### gene expression
-```
-cp trans_synergy/setting_gene_expression.py trans_synergy/setting.py
-```
-
-### netexpress
-```
-cp trans_synergy/setting_net.py trans_synergy/setting.py
-```
 
 ## Run training
+You can choose between the following cell line features (gene dependencies, gene expression and netexpress scores.
+```bash
+python main.py --settings_choice='gene_dependency'
 ```
-python attention_main.py
+```bash
+python main.py --settings_choice='gene_expression'
 ```
+```bash
+python main.py --settings_choice='netexpress'
+```
+
 #### Check results
 check the logfile in the newest ```_run_*****``` folder
 

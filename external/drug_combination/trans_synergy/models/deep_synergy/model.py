@@ -1,10 +1,11 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import torch.optim as optim
-from src import setting
 from torch.optim.lr_scheduler import ExponentialLR
 
+import trans_synergy.settings
+
+setting = trans_synergy.settings.get()
 
 class DrugsCombModel(nn.Module):
 
@@ -66,13 +67,5 @@ class DrugsCombModel(nn.Module):
 
         return model, optimizer, scheduler, loss_fn
 
-    def get_model(self, method=setting.model_type):
+    def get_model(self):
         return self
-
-    # def summary(self, input_size):
-            # """
-            # Print a summary of the model.
-            # input_size: tuple of input tensor size (batch_size, channels, features)
-            # """
-            # from torchinfo import summary
-            # return summary(self, input_size==)

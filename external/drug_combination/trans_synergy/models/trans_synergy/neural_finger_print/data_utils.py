@@ -1,11 +1,11 @@
-import pdb
 import random
 
 import numpy as np
 import pandas as pd
 import torch
 
-from trans_synergy.neural_finger_print.molecules import Molecules
+from trans_synergy.models.trans_synergy.neural_finger_print.molecules import \
+    Molecules
 
 
 def read_drug_number(input_file, num_feature):

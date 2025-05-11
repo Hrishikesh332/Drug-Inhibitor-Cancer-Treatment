@@ -1,12 +1,25 @@
+"""
+Depends on pyNBS which isn't on PyPI, and is only compatible with python 2.7.
+The pyNBD part should be refactored as a standalone script
+"""
 import logging
 import os
 import pdb
 
+import networkx as nx
 import numpy as np
 import pandas as pd
 from scipy.sparse import csr_matrix
 
-from trans_synergy import setting
+import trans_synergy.settings
+from trans_synergy.utils import standarize_dataframe
+
+setting = trans_synergy.settings.get()
+drug_profiles = setting.drug_profiles
+network_path = setting.network_path
+random_walk_simulated_result_matrix = setting.random_walk_simulated_result_matrix
+genes = setting.genes
+network = setting.network
 
 # Setting up log file
 formatter = logging.Formatter(fmt='%(asctime)s %(levelname)s %(name)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S')
@@ -230,13 +243,7 @@ def random_walk_network_propagation(result_matrix_file):
 
 
 def pyNBS_random_walk():
-
-
-    import networkx as nx
     from pyNBS import network_propagation as NBS_propagation
-    from src.setting import (drug_profiles, genes, network, network_path,
-                             random_walk_simulated_result_matrix)
-    from src.utils import standarize_dataframe
 
     # build the matrix from gene gene interaction network, so far
     # gene-gene self interaction weight is 0
@@ -269,5 +276,4 @@ def pyNBS_random_walk():
     propagated_drug_target.to_csv(random_walk_simulated_result_matrix)
 
 if __name__ == '__main__':
-
     pyNBS_random_walk()

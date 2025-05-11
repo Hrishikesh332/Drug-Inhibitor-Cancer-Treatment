@@ -2,13 +2,15 @@ import logging
 import os
 import pickle
 
+import h2o
 import pandas as pd
-#from pandas.io.common import EmptyDataError
 import torch
 from scipy.stats import pearsonr
 from sklearn.model_selection import GroupKFold, ShuffleSplit
 
-from trans_synergy import setting
+import trans_synergy.settings
+
+setting = trans_synergy.settings.get()
 
 # Setting up log file
 formatter = logging.Formatter(fmt='%(asctime)s %(levelname)s %(name)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S')
@@ -18,7 +20,7 @@ logger = logging.getLogger("Drug Combination")
 logger.addHandler(fh)
 logger.setLevel(logging.DEBUG)
 
-class reorganize_tensor:
+class TensorReorganizer:
 
     raw_tensor = None
     def __init__(self, slice_indices, arrangement, dimension):
@@ -160,7 +162,7 @@ def drugs_combo_split(df, group_df, group_col, n_split = 5, rd_state = setting.s
 
     if group_df is None:
         logging.debug("group df should not be empty")
-        raise EmptyDataError
+        raise ValueError("group df should not be empty")
 
     logging.debug("groupkfold split based on %s" % str(group_col))
     groupkfold = GroupKFold(n_splits=n_split)
@@ -200,9 +202,6 @@ def __ml_train_model():
     return rf_drugs
 
 def __ml_train(X, y, train_index, test_index):
-
-    import h2o
-
     try:
         logger.debug("Creating h2o working environment")
         # ### Start H2O
@@ -249,6 +248,6 @@ def transfer_df_to_mask(df, target_set, delete_gene = None):
     mask.fillna(0, inplace=True)
     return mask
 
-def input_hook(module, input, output):
+def input_hook(module, input, _):
     setattr(module, "_value_hook", input)
 
