@@ -14,7 +14,7 @@ def run_fold(fold, base_cfg):
     with open(temp_cfg, 'w') as f:
         yaml.dump(cfg, f)
     
-    cmd = f"python -m src.training.trainer --config {temp_cfg}"
+    cmd = f"python -m src.training.main --config {temp_cfg}"
     print(f"Running: {cmd}")
     subprocess.run(cmd, shell=True)
     

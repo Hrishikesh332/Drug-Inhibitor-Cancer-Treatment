@@ -5,6 +5,7 @@ lr: 0.0001  # This is 1e-4 in decimal format
 epochs: 2000
 drop: 0.3
 log_every: 10
+k_fold_split: 5
 use_wb: true
 wb_proj: synergy
 wb_run: fold1_std

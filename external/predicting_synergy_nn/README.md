@@ -58,7 +58,7 @@ python setup_venv.py
 ### 1 Running Training for a Specific Fold
 
 ```bash
-python -m src.training.trainer --config configs/base.yaml
+python -m src.training.main --config configs/base.yaml
 ```
 
 Make sure to update the `base.yaml` file with the correct configuration for specific fold.

@@ -10,8 +10,9 @@ import wandb
 
 from src.models.architectures import SynergyModel
 from src.models.metrics import calc_pearson, calc_spearman
-from src.utils.data_loader import load_data
+
 from src.utils.visualization import plot_metrics, plot_preds
+
 
 def train_epoch(model, loader, opt, crit, dev):
     model.train()
@@ -76,7 +77,7 @@ def eval_model(model, loader, crit, dev):
     
     return avg_loss, avg_pear, spear.item()
 
-def train_model(cfg):
+def train_model(cfg, tr_dl, ts_dl,sc, in_dim):
     fold = int(cfg.get('fold', 1))
     arch = str(cfg.get('arch', 'std'))
     batch = int(cfg.get('batch', 100))
@@ -121,11 +122,11 @@ def train_model(cfg):
                       'drop': drop
                   })
     
-    x_tr, y_tr, x_ts, y_ts, sc, tr_dl, ts_dl = load_data(data_dir, fold, batch=batch)
-    print(f"Train shape: {x_tr.shape}, Test shape: {x_ts.shape}")
+    #x_tr, y_tr, x_ts, y_ts, sc, tr_dl, ts_dl = load_data(data_dir, fold, batch=batch)
+    #print(f"Train shape: {x_tr.shape}, Test shape: {x_ts.shape}")
     
 
-    model = SynergyModel(in_dim=x_tr.shape[1], arch=arch, drop=drop).to(dev)
+    model = SynergyModel(in_dim=in_dim, arch=arch, drop=drop).to(dev)
     crit = nn.MSELoss()
     
     print(f"Creating optimizer with learning rate: {lr} (type: {type(lr)})")
@@ -226,8 +227,11 @@ def train_model(cfg):
             'final_test_spearman': final_spear
         })
         
-        wandb.save(os.path.join(model_dir, f'final_f{fold}.pt'))
-        wandb.save(os.path.join(model_dir, f'best_f{fold}.pt'))
+        #added  policy="now" becuase having this error OSError: [WinError 1314] A required privilege is not held by the client
+        wandb.save(os.path.join(model_dir, f'final_f{fold}.pt'), base_path=".", policy="now")
+        wandb.save(os.path.join(model_dir, f'best_f{fold}.pt'), base_path=".", policy="now")
+
+
         
         wandb.finish()
     
@@ -251,14 +255,3 @@ def train_model(cfg):
         'scaler': sc
     }
 
-if __name__ == "__main__":
-    import argparse
-    
-    parser = argparse.ArgumentParser(description='Train synergy model')
-    parser.add_argument('--config', type=str, required=True, help='Config YAML path')
-    args = parser.parse_args()
-    
-    with open(args.config, 'r') as f:
-        cfg = yaml.safe_load(f)
-    
-    train_model(cfg)

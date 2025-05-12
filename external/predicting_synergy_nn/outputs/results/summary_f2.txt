@@ -1,0 +1,7 @@
+Arch: std
+Fold: 2
+Time: 50.28 seconds
+Final Loss: 0.8714
+Final Pearson: 0.3531
+Final Spearman: 0.3641
+Best Val Spearman: 0.3641
