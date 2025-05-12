@@ -18,7 +18,7 @@ def run_fold(fold, base_cfg):
     print(f"Running: {cmd}")
     subprocess.run(cmd, shell=True)
     
-    os.remove(temp_cfg)
+    #os.remove(temp_cfg)
     
     print(f"Completed fold {fold}")
 
@@ -33,9 +33,16 @@ def main():
     
     folds = [int(f) for f in args.folds.split(',')]
     
-    for fold in folds:
-        run_fold(fold, base_cfg)
+    check_val = base_cfg['use_cross_val']
+    if not check_val:
+        for fold in folds:
+            run_fold(fold, base_cfg)
     
+    else:
+        folds=1
+        print(f"fold: {folds}")
+        run_fold(folds, base_cfg)
+
     print("All folds completed!")
 
 if __name__ == "__main__":

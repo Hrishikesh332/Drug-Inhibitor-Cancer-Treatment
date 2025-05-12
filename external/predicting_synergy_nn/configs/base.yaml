@@ -2,12 +2,13 @@ fold: 1
 arch: std
 batch: 100
 lr: 0.0001  # This is 1e-4 in decimal format
-epochs: 2000
+epochs: 2
 drop: 0.3
 log_every: 10
-k_fold_split: 5
 use_wb: true
+use_cross_val: true
 wb_proj: synergy
 wb_run: fold1_std
 data_dir: data
 out_dir: outputs
+Cross_val: configs/cross_val.yaml

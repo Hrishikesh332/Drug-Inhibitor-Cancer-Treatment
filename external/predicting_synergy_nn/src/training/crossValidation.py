@@ -4,17 +4,27 @@ from sklearn.model_selection import KFold
 from torch.utils.data import TensorDataset, DataLoader
 from src.training.trainer import train_model  
 from src.utils.data_loader import load_data
+import yaml
 
 
 def cross_validate(cfg):
-    X, Y, x_ts, y_ts, sc, tr_dl, ts_dl = load_data(cfg['data_dir'], batch=cfg['batch'])
-    n_splits = cfg['k_fold_split']
+    cross_val_file = cfg['Cross_val']
+    print(f'cross_val_file : {cross_val_file}')
+    with open(cross_val_file, 'r') as f:
+        crs = yaml.safe_load(f)
+    
+    
+    n_splits = crs['k_fold_split']
+    data_folds = crs['data_fold']
     print(f'K fold n_splits : {n_splits}')
+    print(f'data_folds : {data_folds}')
 
+    X, Y, x_ts, y_ts, sc, tr_dl, ts_dl = load_data(cfg['data_dir'],data_folds, batch=cfg['batch'])
 
     kf = KFold(n_splits=n_splits, shuffle=True, random_state=42)
     all_results = []
     print(f"\n---Inside Cross Validation ---")
+    print(f"kf.split(X) : {kf.split(X)}")
 
     for fold, (train_idx, val_idx) in enumerate(kf.split(X)):
         print(f"\n---Inside Cross Validation for Loop ---")

@@ -10,7 +10,7 @@ import wandb
 
 from src.models.architectures import SynergyModel
 from src.models.metrics import calc_pearson, calc_spearman
-
+from src.utils.data_loader import load_data
 from src.utils.visualization import plot_metrics, plot_preds
 
 
@@ -122,9 +122,9 @@ def train_model(cfg, tr_dl, ts_dl,sc, in_dim):
                       'drop': drop
                   })
     
-    #x_tr, y_tr, x_ts, y_ts, sc, tr_dl, ts_dl = load_data(data_dir, fold, batch=batch)
-    #print(f"Train shape: {x_tr.shape}, Test shape: {x_ts.shape}")
-    
+    if tr_dl is None or ts_dl is None or sc is None or in_dim is None:
+        x_tr, y_tr, x_ts, y_ts, sc, tr_dl, ts_dl = load_data(data_dir, fold, batch=batch)
+        print(f"Train shape: {x_tr.shape}, Test shape: {x_ts.shape}")
 
     model = SynergyModel(in_dim=in_dim, arch=arch, drop=drop).to(dev)
     crit = nn.MSELoss()
