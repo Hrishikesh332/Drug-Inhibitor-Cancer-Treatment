@@ -2,10 +2,11 @@ import logging
 import os
 from dataclasses import dataclass
 from time import time
+from typing import Optional
 
 _DATA_DIR = "data"
 _SRC_DIR = "trans_synergy"
-_RUNS_DIR = "runs"
+_RUNS_DIR = ""
 
 logger = logging.getLogger(__name__)
 
@@ -200,7 +201,7 @@ net_setting = Settings(
     netexpress_df = "gene_expression_raw/netexpress_35_.tsv",
 )
 
-_active_settings: Settings | None = gene_dependency_setting  # will hold the settings choice. default is gene dependency
+_active_settings: Optional[Settings] = gene_dependency_setting  # will hold the settings choice. default is gene dependency
 
 # ----- public API -------------------------------------------------------------
 def configure(conf: Settings) -> None:
