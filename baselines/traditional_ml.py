@@ -7,6 +7,7 @@ from sklearn.model_selection import ParameterSampler
 from tqdm import tqdm
 import joblib
 import wandb
+import numpy as np
 import tempfile, os, joblib, multiprocessing as mp
 
 def _model_train_target(conn, model_class, params, X_train, y_train):
@@ -16,7 +17,6 @@ def _model_train_target(conn, model_class, params, X_train, y_train):
         fd, path = tempfile.mkstemp(suffix=".pkl")
         os.close(fd)
         joblib.dump(model, path)
-        # send back the path
         conn.send(path)
     except Exception as e:
         conn.send(e)
@@ -79,16 +79,22 @@ def get_model(name):
             'min_samples_leaf': [1, 2, 5, 10],
             'max_features': [None, 'sqrt', 'log2']
         }
+    elif name == 'ridge':
+        from sklearn.linear_model import Ridge
+        return Ridge, {'alpha': [0.1, 1.0, 10.0]}
+    elif name == 'knn':
+        from sklearn.neighbors import KNeighborsRegressor
+        return KNeighborsRegressor, {'n_neighbors':[3,5,10]}
     else:
         raise ValueError(f"Unknown model name: {name}")
     
 
 
 def run_model(
-    X_train,
-    y_train,
-    X_val=None,
-    y_val=None,
+    X_trains,
+    y_trains,
+    X_vals=None,
+    y_vals=None,
     X_test=None,
     y_test=None,
     fold_idx: int = None,
@@ -97,9 +103,9 @@ def run_model(
     scoring='mean_squared_error',
     logger=None, 
     scaler = None,
-    n_iter = 30,
+    n_iter = 15,
     paper = None,
-    timeout = 60,
+    timeout = 120,
 ):
     model_class, param_grid = get_model(model_name)
     table = init_wandb(model_name, "hyperparam_tuning", fold_idx=fold_idx, paper = paper)
@@ -115,51 +121,58 @@ def run_model(
     sampled_params = list(ParameterSampler(param_grid, n_iter=n_iter, random_state=42))
 
     for params in tqdm(sampled_params):
-        try:
-            model = train_model_with_timeout(model_class, params, X_train, y_train, timeout=timeout)
-        except TimeoutError:
-            print(f"Skipping params due to timeout: {params}")
+        val_scores_per_model = []
+        folds = list(zip(X_trains, y_trains, X_vals, y_vals))
+        for X_train, y_train, X_val, y_val in tqdm(folds, desc="Inner folds", total=len(folds)):
+            try:
+                model = train_model_with_timeout(model_class, params, X_train, y_train, timeout=timeout)
+            except TimeoutError:
+                print(f"Skipping params due to timeout: {params}")
+                continue
+            except Exception as e:
+                print(f"Skipping params due to error: {params} — {e}")
+                continue
+
+            val_preds = model.predict(X_val)
+            val_score = eval_score(y_val, val_preds)
+            
+            val_scores_per_model.append(val_score)
+            
+            spearman_corr_val = spearmanr(y_val, val_preds)[0]
+            pearson_corr_val = pearsonr(y_val, val_preds)[0]
+        
+        if len(val_scores_per_model) == 0:
+            print(f"Skipping params due to no valid scores: {params}")
             continue
-        except Exception as e:
-            print(f"Skipping params due to error: {params} — {e}")
-            continue
-
-        val_preds = model.predict(X_val)
-        val_score = eval_score(y_val, val_preds)
-
-        spearman_corr_val = spearmanr(y_val, val_preds)[0]
-        pearson_corr_val = pearsonr(y_val, val_preds)[0]
-
+        mean_val_score = sum(val_scores_per_model) / len(val_scores_per_model)
         table.add_data(
             model_name,
-            val_score,
+            mean_val_score,
             pearson_corr_val,
             spearman_corr_val,
             str(params)  # Convert params to string for logging
         )
-
             
-        if best_val_score is None or val_score < best_val_score:
-            best_val_score = val_score
-            best_model = model
+        if best_val_score is None or mean_val_score < best_val_score:
+            X_all = np.concatenate([X_trains[0], X_vals[0]], axis=0)
+            y_all = np.concatenate([y_trains[0], y_vals[0]], axis=0)
+            
+            best_val_score = mean_val_score
+            best_model = train_model_with_timeout(model_class, params, X_all, y_all, timeout=timeout*2)
             best_params = params
-            best_spearman_corr = spearman_corr_val
-            best_pearson_corr = pearson_corr_val
 
             if output_path:
                 joblib.dump(model, f"{output_path}/{model_name}_{hash(frozenset(params.items()))}.pkl")
 
             wandb.log({
-                f"{model_name} Best Val Score": best_val_score,
-                f"{model_name} Best Pearson Correlation": best_pearson_corr,
-                f"{model_name} Best Spearman Correlation": best_spearman_corr,
+                f"{model_name} Best Mean Val Score  ": mean_val_score,
                 f"{model_name} Best Params": best_params,
             })
-            
+            wandb.log({f"{model_name} Hyperparameter Tuning Table": table})
+  
     final_val_score = None
     if X_val is not None and y_val is not None and best_model is not None:
         final_val_score = eval_score(y_val, best_model.predict(X_val))
-
 
     test_score = None
     if X_test is not None and y_test is not None and best_model is not None:
@@ -180,5 +193,5 @@ def run_model(
         joblib.dump(best_model, output_path)
 
     wandb.finish()
-
+    
     return best_model, final_val_score, test_score
