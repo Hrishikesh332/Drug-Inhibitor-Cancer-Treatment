@@ -48,13 +48,14 @@ def train_model_with_timeout(model_class, params, X_train, y_train, timeout=60):
 def init_wandb(model_name: str, hyperam_suffix: str,  fold_idx: int = None, paper: str = None):
     wandb.init(
             project=f"Drug combination baselines",
-            name= f"{paper}{model_name}_{hyperam_suffix}_{fold_idx}",
+            name= f"{paper}_{model_name}_{hyperam_suffix}_fold_{fold_idx}",
         )
     wandb.define_metric("Train Loss", step_metric="Epoch")
     wandb.define_metric("Validation Loss", step_metric="Epoch")
-    table = wandb.Table(columns=["Model Name", "Best Mean Val Score", "Sample Val Pearson Correlation", "Sample Val Spearman Correlation", "Best Val Params"])
+    table_val = wandb.Table(columns=["Model Name", "Best Mean Val Score", "Sample Val Pearson Correlation", "Sample Val Spearman Correlation", "Best Val Params"])
+    table_test = wandb.Table(columns=["Model Name", "Test Score", "Test Pearson Correlation", "Test Spearman Correlation", "Test Params"])
 
-    return table
+    return table_val, table_test
 
 def get_model(name):
     if name == 'random_forest':
@@ -108,8 +109,8 @@ def run_model(
     timeout = 120,
 ):
     model_class, param_grid = get_model(model_name)
-    table = init_wandb(model_name, "hyperparam_tuning", fold_idx=fold_idx, paper = paper)
-
+    table, test_table = init_wandb(model_name, "hyperparam_tuning", fold_idx=fold_idx, paper = paper)
+    
     best_model = None
     best_val_score = None
 
@@ -153,41 +154,48 @@ def run_model(
             str(params)
         )
             
-        if best_val_score is None or mean_val_score < best_val_score:
+        if (best_val_score is None) or (mean_val_score < best_val_score) or (best_model is None):
             X_all = np.concatenate([X_trains[0], X_vals[0]], axis=0)
             y_all = np.concatenate([y_trains[0], y_vals[0]], axis=0)
             
             best_val_score = mean_val_score
-            best_model = train_model_with_timeout(model_class, params, X_all, y_all, timeout=timeout*2)
+            try:
+                best_model = train_model_with_timeout(model_class, params, X_all, y_all, timeout=timeout*20)
+            except Exception as e:
+                best_model = None
             best_params = params
 
             if output_path:
                 joblib.dump(model, f"{output_path}/{model_name}_{hash(frozenset(params.items()))}.pkl")
 
             wandb.log({
-                f"{model_name} Best Mean Val Score  ": mean_val_score,
-                f"{model_name} Best Params": best_params,
+                f"{model_name} Best Mean Val Score ": mean_val_score,
+                f"{model_name} Best Params ": best_params,
             })
-            wandb.log({f"{model_name} Hyperparameter Tuning Table": table})
+            wandb.log({f"{model_name} Hyperpaarmeter Tuning Table": table})
   
     final_val_score = None
-    if X_val is not None and y_val is not None and best_model is not None:
+    if (X_val is not None) and (y_val is not None) and (best_model is not None):
         final_val_score = eval_score(y_val, best_model.predict(X_val))
 
     test_score = None
-    if X_test is not None and y_test is not None and best_model is not None:
+    if (X_test is not None) and (y_test is not None) and (best_model is not None):
         test_preds = best_model.predict(X_test)
         test_score = eval_score(y_test, test_preds)
         spearman_corr_test = spearmanr(y_test, test_preds)[0]
         pearson_corr_test = pearsonr(y_test, test_preds)[0]
         if logger:
             logger.info(f"[{model_name}] Test Score: {test_score}")
-        wandb.log({
-                f"{model_name} Test Score": test_score,
-                f"{model_name} Test Pearson Correlation": spearman_corr_test,
-                f"{model_name} Test Spearman Correlation": pearson_corr_test,
-                f"{model_name} Test Params": best_params,
-            })
+            
+        test_table.add_data(
+            model_name,
+            test_score,
+            pearson_corr_test,
+            spearman_corr_test,
+            str(best_params)  # Convert params to string for logging
+        )
+        
+        wandb.log({f"{model_name} Test Results Table": test_table})
 
     if output_path and best_model is not None:
         joblib.dump(best_model, output_path)

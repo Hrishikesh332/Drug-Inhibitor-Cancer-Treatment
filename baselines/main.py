@@ -57,7 +57,7 @@ def run_biomining(fold: int = 1, n_iter = 15, timeout = 120):
         X_vals = []
         y_vals = []
         
-        X_test, y_test =handler.get_dataset(type='test', fold=None)
+        X_test, y_test =handler.get_dataset(type='test', fold=fold)
         
         for inner_fold in range(1, 4):
 
@@ -76,7 +76,7 @@ def run_biomining(fold: int = 1, n_iter = 15, timeout = 120):
                 y_vals=y_vals,
                 X_test=X_test,
                 y_test=y_test,
-                fold_idx=inner_fold,
+                fold_idx=fold,
                 model_name=baseline_model,
                 paper = "biomining",
                 timeout = timeout,
