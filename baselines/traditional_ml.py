@@ -162,7 +162,7 @@ def run_model(
             try:
                 best_model = train_model_with_timeout(model_class, params, X_all, y_all, timeout=timeout*20)
             except Exception as e:
-                best_model = None
+                pass
             best_params = params
 
             if output_path:
@@ -172,7 +172,7 @@ def run_model(
                 f"{model_name} Best Mean Val Score ": mean_val_score,
                 f"{model_name} Best Params ": best_params,
             })
-            wandb.log({f"{model_name} Hyperpaarmeter Tuning Table": table})
+            wandb.log({f"Hyperpaarmeter Tuning Table": table})
   
     final_val_score = None
     if (X_val is not None) and (y_val is not None) and (best_model is not None):
@@ -195,7 +195,7 @@ def run_model(
             str(best_params)  # Convert params to string for logging
         )
         
-        wandb.log({f"{model_name} Test Results Table": test_table})
+        wandb.log({f"Test Results Table": test_table})
 
     if output_path and best_model is not None:
         joblib.dump(best_model, output_path)
