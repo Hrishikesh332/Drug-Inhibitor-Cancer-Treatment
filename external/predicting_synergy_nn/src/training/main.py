@@ -1,7 +1,6 @@
 from src.training.crossValidation import cross_validate
 from src.training.trainer import train_model
 import yaml
-from src.utils.data_loader import load_data
 
 if __name__ == "__main__":
     import argparse

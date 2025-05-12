@@ -4,10 +4,39 @@ import torch
 from torch.utils.data import DataLoader, TensorDataset
 from sklearn.preprocessing import StandardScaler
 
-def load_data(dir_path, fold, target='ZIP', batch=100):
-    train = pd.read_csv(os.path.join(dir_path, f'fold{fold}/fold{fold}_alltrain.csv'), header=0)
-    test = pd.read_csv(os.path.join(dir_path, f'fold{fold}/fold{fold}_test.csv'), header=0)
+def load_data(cfg, dir_path, fold, target='ZIP', batch=100):
+    check_val = cfg['use_cross_val']
+    if not check_val:
+        train = pd.read_csv(os.path.join(dir_path, f'fold{fold}/fold{fold}_alltrain.csv'), header=0)
+        test = pd.read_csv(os.path.join(dir_path, f'fold{fold}/fold{fold}_test.csv'), header=0)
     
+    else:
+        train = []
+        test = []
+        for i in range(1, fold + 1):
+            folder = os.path.join(dir_path, f"fold{i}")
+            train_file = os.path.join(folder, f"fold{i}_alltrain.csv")
+            test_file = os.path.join(folder, f"fold{i}_test.csv")
+            print(f"train: {train_file} \n")
+            print(f"test: {test_file} \n")
+            train_df = pd.read_csv(train_file, header=0)
+            test_df = pd.read_csv(test_file, header=0)
+
+            train.append(train_df)
+            test.append(test_df)
+
+        train = pd.concat(train, ignore_index=True)
+        test = pd.concat(test, ignore_index=True)
+        #checking duplicate
+        train_duplicates = train.duplicated().sum() 
+        test_duplicates = test.duplicated().sum()
+        print(f"train_duplicates: {train_duplicates}")
+        print(f"test_duplicates: {test_duplicates}")
+        #dropping duplicate
+        train = train.drop_duplicates().reset_index(drop=True)
+        test = test.drop_duplicates().reset_index(drop=True)
+    print(f"train.shape: {train.shape}")
+    print(f"test.shape : {test.shape}")
     train = train.sample(frac=1)
     test = test.sample(frac=1)
     

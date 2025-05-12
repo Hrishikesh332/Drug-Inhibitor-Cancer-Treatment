@@ -18,8 +18,8 @@ def cross_validate(cfg):
     data_folds = crs['data_fold']
     print(f'K fold n_splits : {n_splits}')
     print(f'data_folds : {data_folds}')
-
-    X, Y, x_ts, y_ts, sc, tr_dl, ts_dl = load_data(cfg['data_dir'],data_folds, batch=cfg['batch'])
+    #passed none as the data fold to work on all the folds
+    X, Y, x_ts, y_ts, sc, tr_dl, ts_dl = load_data(cfg, cfg['data_dir'],data_folds, batch=cfg['batch'])
 
     kf = KFold(n_splits=n_splits, shuffle=True, random_state=42)
     all_results = []
