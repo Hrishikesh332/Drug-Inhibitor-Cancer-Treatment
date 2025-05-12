@@ -1,6 +1,6 @@
-from external.drug_combination.trans_synergy.models.trans_synergy.attention_main import setup_data, prepare_splitted_datasets
-from external.drug_combination.trans_synergy.data.trans_synergy_data import DataPreprocessor
-from external.drug_combination.trans_synergy.models.trans_synergy.attention_main import set_seed
+from trans_synergy.models.trans_synergy.attention_main import setup_data, prepare_splitted_datasets
+from trans_synergy.data.trans_synergy_data import DataPreprocessor
+from trans_synergy.models.trans_synergy.attention_main import set_seed
 from baselines.traditional_ml import run_model
 from tqdm import tqdm
 
@@ -45,5 +45,5 @@ def run_biomining():
     pass
 
 if __name__ == "__main__":
-    set_seed(42)
+    set_seed(142)
     run_transynergy()

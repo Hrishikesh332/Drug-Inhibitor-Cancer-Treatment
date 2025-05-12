@@ -4,9 +4,9 @@ from dataclasses import dataclass
 from time import time
 from typing import Optional
 
-_DATA_DIR = "data"
-_SRC_DIR = "trans_synergy"
-_RUNS_DIR = ""
+_DATA_DIR = "external/drug_combination/data"
+_SRC_DIR = "external/drug_combination/trans_synergy"
+_RUNS_DIR = "external/drug_combination"
 
 logger = logging.getLogger(__name__)
 

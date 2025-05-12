@@ -7,6 +7,42 @@ from sklearn.model_selection import ParameterSampler
 from tqdm import tqdm
 import joblib
 import wandb
+import tempfile, os, joblib, multiprocessing as mp
+
+def _model_train_target(conn, model_class, params, X_train, y_train):
+    try:
+        model = model_class(**params)
+        model.fit(X_train, y_train)
+        fd, path = tempfile.mkstemp(suffix=".pkl")
+        os.close(fd)
+        joblib.dump(model, path)
+        # send back the path
+        conn.send(path)
+    except Exception as e:
+        conn.send(e)
+    finally:
+        conn.close()
+        
+
+def train_model_with_timeout(model_class, params, X_train, y_train, timeout=60):
+    parent_conn, child_conn = mp.Pipe(duplex=False)
+    p = mp.Process(
+        target=_model_train_target,
+        args=(child_conn, model_class, params, X_train, y_train),
+    )
+    p.start()
+    p.join(timeout)
+    if p.is_alive():
+        p.terminate()
+        p.join()
+        raise TimeoutError("Model training exceeded timeout.")
+    result = parent_conn.recv()
+    if isinstance(result, Exception):
+        raise result
+    model = joblib.load(result)
+    os.remove(result)
+    return model
+
 
 
 def init_wandb(model_name: str, hyperam_suffix: str,  fold_idx: int = None, paper: str = None):
@@ -16,15 +52,16 @@ def init_wandb(model_name: str, hyperam_suffix: str,  fold_idx: int = None, pape
         )
     wandb.define_metric("Train Loss", step_metric="Epoch")
     wandb.define_metric("Validation Loss", step_metric="Epoch")
+    table = wandb.Table(columns=["Model Name", "Best Val Score", "Best Val Pearson Correlation", "Best Val Spearman Correlation", "Best Val Params"])
 
-    return wandb
+    return table
 
 def get_model(name):
     if name == 'random_forest':
         return RandomForestRegressor, {
             'n_estimators': [100, 200, 500],
             'max_depth': [None, 5, 10, 20],
-            'max_features': ['auto', 'sqrt', 0.5],
+            'max_features': ['log', 'sqrt', 0.5],
             'min_samples_split': [2, 5, 10],
             'min_samples_leaf': [1, 2, 5]
         }
@@ -62,9 +99,10 @@ def run_model(
     scaler = None,
     n_iter = 30,
     paper = None,
+    timeout = 60,
 ):
     model_class, param_grid = get_model(model_name)
-    init_wandb(model_name, "hyperparam_tuning", fold_idx=fold_idx)
+    table = init_wandb(model_name, "hyperparam_tuning", fold_idx=fold_idx, paper = paper)
 
     best_model = None
     best_val_score = None
@@ -77,8 +115,14 @@ def run_model(
     sampled_params = list(ParameterSampler(param_grid, n_iter=n_iter, random_state=42))
 
     for params in tqdm(sampled_params):
-        model = model_class(**params)
-        model.fit(X_train, y_train)
+        try:
+            model = train_model_with_timeout(model_class, params, X_train, y_train, timeout=timeout)
+        except TimeoutError:
+            print(f"Skipping params due to timeout: {params}")
+            continue
+        except Exception as e:
+            print(f"Skipping params due to error: {params} — {e}")
+            continue
 
         val_preds = model.predict(X_val)
         val_score = eval_score(y_val, val_preds)
@@ -86,11 +130,13 @@ def run_model(
         spearman_corr_val = spearmanr(y_val, val_preds)[0]
         pearson_corr_val = pearsonr(y_val, val_preds)[0]
 
-        wandb.log({
-                f"{model_name} Val Score": val_score,
-                f"{model_name} Spearman Correlation": spearman_corr_val,
-                f"{model_name} Pearson Correlation": pearson_corr_val
-            })
+        table.add_data(
+            model_name,
+            val_score,
+            pearson_corr_val,
+            spearman_corr_val,
+            str(params)  # Convert params to string for logging
+        )
 
             
         if best_val_score is None or val_score < best_val_score:
@@ -120,13 +166,13 @@ def run_model(
         test_preds = best_model.predict(X_test)
         test_score = eval_score(y_test, test_preds)
         spearman_corr_test = spearmanr(y_test, test_preds)[0]
-        spearman_corr_test = pearsonr(y_test, test_preds)[0]
+        pearson_corr_test = pearsonr(y_test, test_preds)[0]
         if logger:
             logger.info(f"[{model_name}] Test Score: {test_score}")
         wandb.log({
                 f"{model_name} Test Score": test_score,
                 f"{model_name} Test Pearson Correlation": spearman_corr_test,
-                f"{model_name} Test Spearman Correlation": spearman_corr_test,
+                f"{model_name} Test Spearman Correlation": pearson_corr_test,
                 f"{model_name} Test Params": best_params,
             })
 
