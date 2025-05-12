@@ -61,7 +61,7 @@ def get_model(name):
         return RandomForestRegressor, {
             'n_estimators': [100, 200, 500],
             'max_depth': [None, 5, 10, 20],
-            'max_features': ['log', 'sqrt', 0.5],
+            'max_features': ['log2', 'sqrt', 0.5],
             'min_samples_split': [2, 5, 10],
             'min_samples_leaf': [1, 2, 5]
         }
