@@ -52,7 +52,7 @@ def init_wandb(model_name: str, hyperam_suffix: str,  fold_idx: int = None, pape
         )
     wandb.define_metric("Train Loss", step_metric="Epoch")
     wandb.define_metric("Validation Loss", step_metric="Epoch")
-    table = wandb.Table(columns=["Model Name", "Best Val Score", "Best Val Pearson Correlation", "Best Val Spearman Correlation", "Best Val Params"])
+    table = wandb.Table(columns=["Model Name", "Best Mean Val Score", "Sample Val Pearson Correlation", "Sample Val Spearman Correlation", "Best Val Params"])
 
     return table
 
@@ -132,25 +132,25 @@ def run_model(
             except Exception as e:
                 print(f"Skipping params due to error: {params} — {e}")
                 continue
-
+            
             val_preds = model.predict(X_val)
             val_score = eval_score(y_val, val_preds)
-            
-            val_scores_per_model.append(val_score)
-            
             spearman_corr_val = spearmanr(y_val, val_preds)[0]
             pearson_corr_val = pearsonr(y_val, val_preds)[0]
+            
+            val_scores_per_model.append(val_score)
         
         if len(val_scores_per_model) == 0:
             print(f"Skipping params due to no valid scores: {params}")
             continue
+        
         mean_val_score = sum(val_scores_per_model) / len(val_scores_per_model)
         table.add_data(
             model_name,
             mean_val_score,
             pearson_corr_val,
             spearman_corr_val,
-            str(params)  # Convert params to string for logging
+            str(params)
         )
             
         if best_val_score is None or mean_val_score < best_val_score:
