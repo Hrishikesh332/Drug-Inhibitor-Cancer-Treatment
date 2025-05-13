@@ -92,12 +92,13 @@ class CVDatasetHandler:
     def __init__(self, data_dir, outer_fold=1):
         self.data_dir = data_dir + '/fold' + str(outer_fold)
         self.outer_fold = outer_fold
+        self._read_datasets()
 
     def _load_csvs(self, paths):
         dfs = [pd.read_csv(p) for p in paths]
         return pd.concat(dfs, ignore_index=True)
 
-    def setup(self):
+    def _read_datasets(self):
         val_dir = os.path.join(self.data_dir, 'validation')
         
         self.train_sets = []
