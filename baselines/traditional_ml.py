@@ -104,7 +104,7 @@ def get_model(name: str) -> Tuple[BaseEstimator, dict]:
     
 
 
-def run_model(
+def train_and_eval_model(
     X_trains,
     y_trains,
     X_vals=None,

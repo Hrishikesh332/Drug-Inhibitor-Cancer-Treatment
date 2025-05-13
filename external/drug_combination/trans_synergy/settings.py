@@ -6,10 +6,9 @@ from typing import Optional
 
 _DATA_DIR = "external/drug_combination/data"
 _SRC_DIR = "external/drug_combination/trans_synergy"
-_RUNS_DIR = "external/drug_combination"
+_RUNS_DIR = "external/drug_combination/runs" 
 
 logger = logging.getLogger(__name__)
-
 @dataclass
 class Settings:
     """
