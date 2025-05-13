@@ -25,3 +25,7 @@ python main.py --mode biomining --n_iter 15 --timeout 60
 | biomining   | decision_tree |      22.0338 |                   0.495622 |                    0.484003 | {'min_samples_split': 5, 'min_samples_leaf': 10, 'max_features': None, 'max_depth': 15}                         |
 | biomining   | svm           |      23.1375 |                   0.440991 |                    0.461077 | {'kernel': 'rbf', 'gamma': 'auto', 'epsilon': 0.1, 'C': 10}                                                     |
 | biomining   | random_forest |      17.8277 |                   0.609501 |                    0.58001  | {'n_estimators': 100, 'min_samples_split': 2, 'min_samples_leaf': 2, 'max_features': 'log2', 'max_depth': None} |
+
+
+
+**To generate this table download Test Result tables from wandb, then process them https://colab.research.google.com/drive/1Wp1n3jo7sc9z7NIMgzSGsguRLHwk23Go?usp=sharing .**
