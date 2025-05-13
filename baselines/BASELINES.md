@@ -1,5 +1,5 @@
-# Baeline results 
-Baselines are run agains stable validation set in transynergy (since we have a velidation set - the same train, val and test- set as in the original code) and via inner-cross validation in biomining (on outer fold 1).
+# Baseline results 
+Baselines are run against a stable validation set in **TranSynergy** (since we have a validation set — the same train, validation, and test sets as in the original code) and via inner cross-validation in **BioMining** (on outer fold 1).
 
 ## Process Overview 
 We iterate over the parameter grid defined in the ```get_model``` method in ```baselines/traditional_ml.py```. A maximum of 15 iterations over combinations in the parameter grid is performed, with a timeout option of 60s, which means that in order for results to be valid, the model should fit the data in under a minute. 
