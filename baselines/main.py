@@ -14,7 +14,7 @@ def run_transynergy(timeout = 120, n_iter = 15):
 
     _, X, Y, _, _ = setup_data()
 
-    split_func = DataPreprocessor.reg_train_eval_test_split # only this needs to be changed to do full crossval
+    split_func = DataPreprocessor.regular_train_eval_test_split # only this needs to be changed to do full crossval
     for fold_idx, partition in enumerate(tqdm(split_func(fold='fold', test_fold=4), desc="Folds", total=1)):
         partition_indices = {
             'train': partition[0],

@@ -9,26 +9,39 @@ import joblib
 import wandb
 import numpy as np
 import tempfile, os, joblib, multiprocessing as mp
+from sklearn.base import BaseEstimator
+from typing import Tuple
 
-def _model_train_target(conn, model_class, params, X_train, y_train):
+
+def _train_model_in_subprocess(
+            result_sender: mp.connection.Connection,
+            model_class: BaseEstimator,
+            params: dict,
+            X_train: np.ndarray,
+            y_train: np.ndarray,
+        ) -> None:
     try:
         model = model_class(**params)
         model.fit(X_train, y_train)
         fd, path = tempfile.mkstemp(suffix=".pkl")
         os.close(fd)
         joblib.dump(model, path)
-        conn.send(path)
+        result_sender.send(path)
     except Exception as e:
-        conn.send(e)
+        result_sender.send(e)
     finally:
-        conn.close()
+        result_sender.close()
         
 
-def train_model_with_timeout(model_class, params, X_train, y_train, timeout=60):
-    parent_conn, child_conn = mp.Pipe(duplex=False)
+def train_model_with_timeout(model_class: BaseEstimator,
+                             params: dict, 
+                             X_train: np.ndarray,
+                             y_train: np.ndarray, 
+                             timeout: int=60):
+    result_receiver, result_sender = mp.Pipe(duplex=False)
     p = mp.Process(
-        target=_model_train_target,
-        args=(child_conn, model_class, params, X_train, y_train),
+        target=_train_model_in_subprocess,
+        args=(result_sender, model_class, params, X_train, y_train),
     )
     p.start()
     p.join(timeout)
@@ -36,7 +49,7 @@ def train_model_with_timeout(model_class, params, X_train, y_train, timeout=60):
         p.terminate()
         p.join()
         raise TimeoutError("Model training exceeded timeout.")
-    result = parent_conn.recv()
+    result = result_receiver.recv()
     if isinstance(result, Exception):
         raise result
     model = joblib.load(result)
@@ -57,7 +70,7 @@ def init_wandb(model_name: str, hyperam_suffix: str,  fold_idx: int = None, pape
 
     return table_val, table_test
 
-def get_model(name):
+def get_model(name: str) -> Tuple[BaseEstimator, dict]:
     if name == 'random_forest':
         return RandomForestRegressor, {
             'n_estimators': [100, 200, 500],

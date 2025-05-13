@@ -452,7 +452,7 @@ def run(use_wandb: bool, ):
     
     slice_indices = drug_features_length + drug_features_length + cellline_features_length
     
-    split_func = trans_synergy.data.trans_synergy_data.DataPreprocessor.reg_train_eval_test_split
+    split_func = trans_synergy.data.trans_synergy_data.DataPreprocessor.regular_train_eval_test_split
 
     for fold_idx, partition in enumerate(tqdm(split_func(fold='fold', test_fold=4), desc="Folds", total=1)):
         training_generator, validation_generator, test_generator, all_data_generator, all_data_generator_total = train_model_on_fold(fold_idx, partition, X, Y, std_scaler, reorder_tensor,
