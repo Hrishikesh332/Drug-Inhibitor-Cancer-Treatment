@@ -161,10 +161,10 @@ def run_model(
             best_val_score = mean_val_score
             try:
                 best_model = train_model_with_timeout(model_class, params, X_all, y_all, timeout=timeout*20)
+                best_params = params
             except Exception as e:
                 pass
-            best_params = params
-
+        
             if output_path:
                 joblib.dump(model, f"{output_path}/{model_name}_{hash(frozenset(params.items()))}.pkl")
 
