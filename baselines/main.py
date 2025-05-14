@@ -1,6 +1,8 @@
 from trans_synergy.models.trans_synergy.attention_main import prepare_splitted_datasets as prepare_splitted_datasets_transynergy
+from trans_synergy.models.trans_synergy.attention_main import setup_data as setup_data_transynergy
+from trans_synergy.data.trans_synergy_data import DataPreprocessor as DataPreprocessorTranSynergy
 from trans_synergy.models.trans_synergy.attention_main import set_seed
-from baselines.traditional_ml import run_model
+from baselines.traditional_ml import train_and_eval_model
 from external.predicting_synergy_nn.src.utils.data_loader import CVDatasetHandler
 from tqdm import tqdm
 import argparse
@@ -11,9 +13,9 @@ def run_transynergy(timeout = 120, n_iter = 15):
     
     baseline_models = BASELINE_MODELS
 
-    _, X, Y, _, _ = trans_synergy.models.trans_synergy.attention_main.setup_data()
+    _, X, Y, _, _ = setup_data_transynergy()
 
-    split_func = trans_synergy.data.trans_synergy_data.DataPreprocessor.regular_train_eval_test_split # only this needs to be changed to do full crossval
+    split_func = DataPreprocessorTranSynergy.regular_train_eval_test_split # only this needs to be changed to do full crossval
     for fold_idx, partition in enumerate(tqdm(split_func(fold='fold', test_fold=4), desc="Folds", total=1)):
         partition_indices = {
             'train': partition[0],
@@ -30,7 +32,7 @@ def run_transynergy(timeout = 120, n_iter = 15):
         X_test, y_test = test_set.data_cache, test_set.data_cache_y
         
         for baseline_model in baseline_models:
-            run_model(
+            train_and_eval_model(
                 [X_train],
                 [y_train],
                 X_vals=[X_val],
@@ -67,7 +69,7 @@ def run_biomining(fold: int = 1, n_iter = 15, timeout = 120):
             X_vals.append(X_val)
             y_vals.append(y_val)
 
-        run_model(
+        train_and_eval_model(
                 X_trains,
                 y_trains,
                 X_vals=X_vals,
