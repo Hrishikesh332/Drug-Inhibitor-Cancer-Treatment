@@ -20,7 +20,7 @@ class Settings:
     gene_expression: str
     backup_expression: str
     netexpress_df: str
-    n_epochs: int = 700
+    n_epochs: int = 800
 
     unit_test = False
 
@@ -176,7 +176,7 @@ class Settings:
 gene_dependency_setting = Settings(
     synergy_score=os.path.join(_DATA_DIR, 'synergy_score', 'synergy_score.csv'),
     cellline_features=('gene_dependence',),
-    n_epochs=700,
+    n_epochs=800,
     gene_expression="gene_expression_raw/normalized_gene_expession_35.tsv",
     backup_expression = "gene_expression_raw/normalized_gene_expession_35.tsv",
     netexpress_df = "gene_expression_raw/netexpress_scores_norm.tsv",
@@ -185,7 +185,7 @@ gene_dependency_setting = Settings(
 gene_expression_setting = Settings(
     synergy_score=os.path.join(_DATA_DIR, 'synergy_score', 'combin_data_35.csv'),
     cellline_features=('gene_expression',),
-    n_epochs=700,
+    n_epochs=800,
     gene_expression="gene_expression_raw/normalized_gene_expession_35.tsv",
     backup_expression = "gene_expression_raw/normalized_gene_expession_35.tsv",
     netexpress_df = "gene_expression_raw/netexpress_scores_norm.tsv",
