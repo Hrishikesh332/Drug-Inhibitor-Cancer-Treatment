@@ -320,7 +320,7 @@ def save_model(model, save_path, fold):
     Args:
         model (torch.nn.Module): The model to save.
         path (str): Base directory where the model should be saved.
-        fold_idx (int): Fold index to append to the path.
+        fold (str or int): Fold index to append to the path.
     """
     # construct the full save path
     model_filename = f"fold_{fold}_model.pt"
