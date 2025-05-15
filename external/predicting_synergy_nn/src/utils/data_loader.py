@@ -1,8 +1,11 @@
 import os
 import pandas as pd
 import torch
-from torch.utils.data import DataLoader, TensorDataset
+from torch.utils.data import DataLoader, TensorDataset, Dataset
 from sklearn.preprocessing import StandardScaler
+from typing import Tuple, Literal
+import numpy as np
+
 
 def load_data(dir_path, fold, target='ZIP', batch=100):
     train = pd.read_csv(os.path.join(dir_path, f'fold{fold}/fold{fold}_alltrain.csv'), header=0)
@@ -69,3 +72,58 @@ def load_valid_data(dir_path, fold, split, target='ZIP', batch=100):
     vl_dl = DataLoader(vl_ds, batch_size=batch, shuffle=False)
     
     return x_tr, y_tr, x_vl, y_vl, sc, tr_dl, vl_dl
+
+class CSVTabularDataset(Dataset):
+    def __init__(self, df):
+        self.df = df
+
+    def __len__(self):
+        return len(self.df)
+
+    def get_dataset(self, target = "ZIP") -> Tuple[np.ndarray, np.ndarray]:
+        x = self.df.iloc[:, 0:33]
+        y = self.df[target]
+        # cast to numpy array
+        x = x.values
+        y = y.values.ravel()
+        return x, y
+
+class CVDatasetHandler:
+    def __init__(self, data_dir, outer_fold=1):
+        self.data_dir = data_dir + '/fold' + str(outer_fold)
+        self.outer_fold = outer_fold
+        self._read_datasets()
+
+    def _load_csvs(self, paths):
+        dfs = [pd.read_csv(p) for p in paths]
+        return pd.concat(dfs, ignore_index=True)
+
+    def _read_datasets(self):
+        val_dir = os.path.join(self.data_dir, 'validation')
+        
+        self.train_sets = []
+        self.val_sets = []
+        for i in range(1, 4):
+            train_csv = os.path.join(val_dir, f'fold{self.outer_fold}_train{i}.csv')
+            valid_csv = os.path.join(val_dir, f'fold{self.outer_fold}_valid{i}.csv')
+            train_df = pd.read_csv(train_csv)
+            valid_df = pd.read_csv(valid_csv)
+            self.train_sets.append(CSVTabularDataset(train_df))
+            self.val_sets.append(CSVTabularDataset(valid_df))
+
+        alltrain_csv = os.path.join(self.data_dir, 'fold1_alltrain.csv')
+        test_csv = os.path.join(self.data_dir, 'fold1_test.csv')
+        self.all_train_dataset = CSVTabularDataset(pd.read_csv(alltrain_csv))
+        self.test_dataset = CSVTabularDataset(pd.read_csv(test_csv))
+        
+    def get_dataset(self, type: Literal['train', 'val', 'test', 'alltrain'], fold: Literal[1, 2, 3] = 1) -> Tuple[np.ndarray, np.ndarray]:
+        if type == 'train':
+            return self.train_sets[fold - 1].get_dataset()
+        elif type == 'val':
+            return self.val_sets[fold - 1].get_dataset()
+        elif type == 'test':
+            return self.test_dataset.get_dataset()
+        elif type == 'alltrain':
+            return self.all_train_dataset.get_dataset()
+        else:
+            raise ValueError(f"Unknown dataset type: {type}")

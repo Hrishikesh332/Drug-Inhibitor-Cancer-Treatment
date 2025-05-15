@@ -9,5 +9,4 @@ if use_cuda:
 else:
     device2 = device("cpu")
 
-torch.set_default_tensor_type('torch.FloatTensor')
 

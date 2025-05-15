@@ -134,3 +134,4 @@ cython_debug/
 
 # VSCode settings
 .vscode/
+wandb/*

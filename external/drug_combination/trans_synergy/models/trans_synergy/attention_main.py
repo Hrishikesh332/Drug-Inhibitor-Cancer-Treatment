@@ -92,7 +92,7 @@ def prepare_model(reorder_tensor):
     
     return drug_model, best_drug_model
 
-def prepare_splitted_dataset(partition, labels, loaded_data):
+def prepare_splitted_dataloaders(partition, labels, loaded_data):
     """
     Prepare train, validation, test, and evaluation data generators.
     """
@@ -139,296 +139,328 @@ def prepare_splitted_dataset(partition, labels, loaded_data):
     return (training_generator, eval_train_generator, validation_generator,
             test_generator, all_data_generator, all_data_generator_total)
 
-def run(use_wandb: bool):
-    if not use_wandb:
-        environ["WANDB_MODE"] = "dryrun"
 
-    std_scaler = StandardScaler()
+def prepare_splitted_datasets(partition, labels, loaded_data):
+    """
+    Prepare train, validation, test, and evaluation data generators.
+    """
+
+    logger.debug("Preparing datasets ... ")
+
+    # Training dataset and generator
+    training_set = trans_synergy.data.trans_synergy_data.TransSynergyDataset(partition['train'], labels, loaded_data)
+    # Evaluation training dataset and generator (train + eval1 + eval2)
+    eval_train_set = trans_synergy.data.trans_synergy_data.TransSynergyDataset(np.concatenate([partition['train'], partition['eval1'], partition['eval2']]), labels, loaded_data)
+    # Validation dataset and generator (eval1)
+    validation_set = trans_synergy.data.trans_synergy_data.TransSynergyDataset(partition['eval1'], labels, loaded_data)
+    # Test dataset and generator (test1)
+    test_set = trans_synergy.data.trans_synergy_data.TransSynergyDataset(partition['test1'], labels, loaded_data)
+
+    # All dataset and generator (train + eval1 + test1)
+    all_index_list = np.concatenate([partition['train'][:len(partition['train']) // 2], partition['eval1'], partition['test1']])
+    all_set = trans_synergy.data.trans_synergy_data.TransSynergyDataset(all_index_list, labels, loaded_data)
+
+    return (training_set, eval_train_set, validation_set,
+            test_set,  all_set)
+
+
+def setup_data():
     logger.debug("Getting features and synergy scores ...")
-
+    std_scaler = StandardScaler()
     X, Y, drug_features_length, cellline_features_length = prepare_data()
+    return std_scaler, X, Y, drug_features_length, cellline_features_length
 
-    logger.debug("Preparing models")
+def setup_tensor_reorganizer(drug_features_length, cellline_features_length):
     slice_indices = drug_features_length + drug_features_length + cellline_features_length
     reorder_tensor = drug_drug.TensorReorganizer(slice_indices, setting.arrangement, 2)
-    logger.debug("the layout of all features is {!r}".format(reorder_tensor.get_reordered_slice_indices()))
+    logger.debug("Feature layout: {!r}".format(reorder_tensor.get_reordered_slice_indices()))
+    return reorder_tensor
+
+def setup_model_and_optimizer(reorder_tensor):
     set_seed()
     drug_model, best_drug_model = prepare_model(reorder_tensor)
+    optimizer = torch.optim.Adam(
+        drug_model.parameters(), lr=setting.start_lr,
+        weight_decay=setting.lr_decay, betas=(0.9, 0.98), eps=1e-9
+    )
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=100, eta_min=1e-7)
+    return drug_model, best_drug_model, optimizer, scheduler
 
-    optimizer = torch.optim.Adam(drug_model.parameters(), lr=setting.start_lr, weight_decay=setting.lr_decay,
-                                 betas=(0.9, 0.98), eps=1e-9)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=100, eta_min = 1e-7)
+def enumerate_splits(split_func):
+    return tqdm(split_func(fold='fold', test_fold=4), desc="Folds", total=1)
 
-    # define variables used in testing and shap analysis
-    test_generator = None
-    all_data_generator_total = None
-    all_data_generator = None
-    test_index_list = None
-    best_cv_pearson_score = 0
-    partition = None
+def init_wandb(use_wandb: bool, fold_idx: int = None, testing: bool = False):
+    if not use_wandb:
+        return None
 
-    split_func = trans_synergy.data.trans_synergy_data.DataPreprocessor.reg_train_eval_test_split
+    if testing:
+        wandb.init(project="Drug combination TRANSYNERGY")
+    else:
+        wandb.init(
+            project=f"Drug combination alpha_fold_{fold_idx}",
+            name=path.basename(setting.run_dir).rsplit(sep, 1)[-1] + '_' + setting.data_specific[:15] + '_' + str(random_seed),
+            notes=setting.data_specific
+        )
+        wandb.define_metric("Train Loss", step_metric="Epoch")
+        wandb.define_metric("Validation Loss", step_metric="Epoch")
 
-        
-    for fold_idx, (train_index, test_index, test_index_2, evaluation_index, evaluation_index_2) in enumerate(
-            tqdm(split_func(fold='fold', test_fold=4), desc="Folds", total=1) # the original code calls for this only
-        ):
-        
-        if use_wandb:
-            wandb.init(project=f"Drug combination alpha_fold_{fold_idx}",
-                       name =path.basename(setting.run_dir).rsplit(sep, 1)[-1] + '_' + setting.data_specific[:15] + '_' + str(random_seed),
-
-                       notes=setting.data_specific)
-            wandb.define_metric("Train Loss", step_metric="Epoch")
-            wandb.define_metric("Validation Loss", step_metric="Epoch")
-        # local_X = X[np.concatenate((train_index, test_index, test_index_2, evaluation_index, evaluation_index_2))]
-       
-        std_scaler.fit(Y[train_index])
-        if setting.y_transform:
-            Y = std_scaler.transform(Y) * 100
-
-        partition_intigers = {
-                    'train': train_index,
-                    'test1': test_index, 
-                    'test2': test_index_2,
-                    'eval1': evaluation_index,
-                    'eval2': evaluation_index_2}
-
-        training_generator, eval_train_generator, validation_generator, test_generator, \
-        all_data_generator, all_data_generator_total = prepare_splitted_dataset(partition_intigers, Y.reshape(-1), X)
-        test_index_list = partition_intigers['test1']
-
-        logger.debug("Start training")
-        set_seed()
-
-        for epoch in tqdm(range(setting.n_epochs), desc="Training Epochs"):
-
-            drug_model.to(device2)  # Ensure the model is on the correct device
-            train_total_loss = 0
-            all_preds = []
-            all_ys = []
-
-            training_iter = tqdm(training_generator, desc=f"Epoch {epoch+1}", leave=False)
-
-            for cur_local_batch, cur_local_labels in training_iter:
-                
-                drug_model.train()
-
-                local_batch, local_labels = cur_local_batch.float().to(device2), cur_local_labels.float().to(device2)
-                local_batch = local_batch.contiguous().view(-1, 1, sum(slice_indices) + setting.single_repsonse_feature_length)
-                reorder_tensor.load_raw_tensor(local_batch)
-                local_batch = reorder_tensor.get_reordered_narrow_tensor()
-                preds = drug_model(*local_batch)
-                preds = preds.contiguous().view(-1)
-                ys = local_labels.contiguous().view(-1)
-                optimizer.zero_grad()
-                assert preds.size(-1) == ys.size(-1)
-                loss = F.mse_loss(preds, ys)
-                loss.backward()
-                # added by nina
-                # torch.nn.utils.clip_grad_norm_(drug_model.parameters(), max_norm=1.0)
-                optimizer.step()
-                
-                train_total_loss += loss.item()
-                
-                # save preds and ys for later evaluation
-                if setting.y_transform:
-                    ys = std_scaler.inverse_transform(ys.cpu().reshape(-1, 1) / 100)
-                    preds = std_scaler.inverse_transform(preds.detach().cpu().numpy().reshape(-1, 1) / 100)
-                all_preds.append(preds)
-                all_ys.append(ys)
-
-            all_preds = np.concatenate(all_preds)
-            all_ys = np.concatenate(all_ys)
-            
-            avg_train_loss = mean_squared_error(all_preds, all_ys)
-            train_pearson = pearsonr(all_preds.reshape(-1), all_ys.reshape(-1))[0]
-            train_spearman = spearmanr(all_preds.reshape(-1), all_ys.reshape(-1))[0]
-            scheduler.step()
-
-            with torch.set_grad_enabled(False):
-                drug_model.eval()
-                all_preds = []
-                all_ys = []
-
-                validation_iter = iter(validation_generator)
-
-                for cur_local_batch, cur_local_labels in validation_iter:
-                    # No need for reshaping on CPU
-                    local_batch, local_labels = cur_local_batch.float().to(device2), cur_local_labels.float().to(device2)
-                    local_batch = local_batch.contiguous().view(-1, 1, sum(slice_indices) + setting.single_repsonse_feature_length)
-                    reorder_tensor.load_raw_tensor(local_batch)
-                    local_batch = reorder_tensor.get_reordered_narrow_tensor()
-                    preds = drug_model(*local_batch)
-                    preds = preds.contiguous().view(-1)
-                    ys = local_labels.contiguous().view(-1)
-
-                    if setting.y_transform:
-                        ys = std_scaler.inverse_transform(ys.cpu().reshape(-1, 1) / 100)
-                        preds = std_scaler.inverse_transform(preds.detach().cpu().numpy().reshape(-1, 1) / 100)
-                    all_preds.append(preds)
-                    all_ys.append(ys)
-                # Concatenate predictions and labels after processing all batches
-                all_preds = np.concatenate(all_preds)
-                all_ys = np.concatenate(all_ys)
-
-                # Ensure that predictions and labels have the same length
-                assert len(all_preds) == len(all_ys), "predictions and labels are in different lengths"
-
-                # Compute metrics
-                val_loss = mean_squared_error(all_preds, all_ys)
-                val_pearson = pearsonr(all_preds.reshape(-1), all_ys.reshape(-1))[0]
-                val_spearman = spearmanr(all_preds.reshape(-1), all_ys.reshape(-1))[0]
-                if use_wandb:
-                    wandb.log({
-                        "Train Loss": avg_train_loss,
-                        "Validation Loss": val_loss,
-                        "Epoch": epoch + 1,
-                        "LR": scheduler.get_last_lr()[0],
-                        "Val Pearson": val_pearson,
-                        "Val Spearman": val_spearman,
-                        "Train Pearson": train_pearson,
-                        "Train Spearman": train_spearman
-                    }, step=epoch + 1)
-
-                # Save model if better performance is achieved
-                if best_cv_pearson_score < val_pearson:
-                    logger.debug('++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++')
-                    logger.debug(f'saved a model, sample size {len(all_preds)}')
-                    logger.debug('++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++')
-                    best_cv_pearson_score = val_pearson
-                    best_drug_model.load_state_dict(drug_model.state_dict())
+    return wandb
 
 
-            logger.info(
-                "Validation mse is {0}, Validation pearson correlation is {1!r}, Validation spearman correlation is {2!r}"
-                    .format(np.mean(val_loss), val_pearson, val_spearman))
-        if use_wandb:
-            wandb.finish()
+def train_loop(model, best_model, train_loader, val_loader, optimizer, scheduler, reorder_tensor, std_scaler, use_wandb, slice_indices):
+    best_val_score = -float("inf")
 
-    wandb.init(project="Drug combination alpha_fold - Testing best model",)
-    ### Testing
+    for epoch in tqdm(range(setting.n_epochs), desc="Training Epochs"):
+        model.to(device2)
+        model.train()
+        train_loss, train_preds, train_ys = 0, [], []
 
-    if setting.load_old_model:
-        best_drug_model.load_state_dict(load(setting.old_model_path).state_dict())
+        for batch, labels in tqdm(train_loader, desc=f"Epoch {epoch+1}", leave=False):
+            batch = batch.float().to(device2)
+            labels = labels.float().to(device2)
+            batch = batch.contiguous().view(-1, 1, sum(slice_indices) + setting.single_repsonse_feature_length)
+            reorder_tensor.load_raw_tensor(batch)
+            batch = reorder_tensor.get_reordered_narrow_tensor()
 
-    with torch.set_grad_enabled(False):
+            preds = model(*batch).view(-1)
+            ys = labels.view(-1)
+            loss = F.mse_loss(preds, ys)
 
-        best_drug_model.eval()
-        all_preds = []
-        all_ys = []
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
 
-        test_iter = iter(test_generator)
+            train_loss += loss.item()
 
-        for cur_local_batch, cur_local_labels in tqdm(test_iter, desc="Testing", total=len(test_iter)):
-            # Transfer to GPU
-            local_batch, local_labels = cur_local_batch.float().to(device2), cur_local_labels.float().to(device2)
-            local_batch = local_batch.contiguous().view(-1, 1, sum(slice_indices) + setting.single_repsonse_feature_length)
-            reorder_tensor.load_raw_tensor(local_batch)
-            local_batch = reorder_tensor.get_reordered_narrow_tensor()
-            preds = drug_model(*local_batch)
-            preds = preds.contiguous().view(-1)
-            ys = local_labels.contiguous().view(-1)
-            assert preds.size(-1) == local_labels.size(-1)
-            # Directly process predictions on GPU, avoid CPU transfer unless needed
             if setting.y_transform:
                 ys = std_scaler.inverse_transform(ys.cpu().reshape(-1, 1) / 100)
                 preds = std_scaler.inverse_transform(preds.detach().cpu().numpy().reshape(-1, 1) / 100)
+            train_preds.append(preds)
+            train_ys.append(ys)
+
+        scheduler.step()
+
+        train_preds = np.concatenate(train_preds)
+        train_ys = np.concatenate(train_ys)
+        train_mse = mean_squared_error(train_preds, train_ys)
+        train_pearson = pearsonr(train_preds.ravel(), train_ys.ravel())[0]
+        train_spearman = spearmanr(train_preds.ravel(), train_ys.ravel())[0]
+
+        val_metrics = evaluate(model, val_loader, reorder_tensor, std_scaler, slice_indices)
+
+        if use_wandb:
+            wandb.log({
+                "Train Loss": train_mse,
+                "Validation Loss": val_metrics['mse'],
+                "Epoch": epoch + 1,
+                "LR": scheduler.get_last_lr()[0],
+                "Val Pearson": val_metrics['pearson'],
+                "Val Spearman": val_metrics['spearman'],
+                "Train Pearson": train_pearson,
+                "Train Spearman": train_spearman,
+            }, step=epoch + 1)
+
+        if val_metrics['pearson'] > best_val_score:
+            best_val_score = val_metrics['pearson']
+            best_model.load_state_dict(model.state_dict())
+            logger.debug("New best model saved.")
+
+        logger.info(f"Epoch {epoch+1}: Val MSE={val_metrics['mse']:.4f}, Pearson={val_metrics['pearson']:.4f}")
+    
+    return best_model
+
+def evaluate(model, data_loader, reorder_tensor, std_scaler, slice_indices):
+    model.eval()
+    all_preds, all_ys = [], []
+
+    with torch.no_grad():
+        for batch, labels in data_loader:
+            batch = batch.float().to(device2)
+            labels = labels.float().to(device2)
+            batch = batch.contiguous().view(-1, 1, sum(slice_indices) + setting.single_repsonse_feature_length)
+            reorder_tensor.load_raw_tensor(batch)
+            batch = reorder_tensor.get_reordered_narrow_tensor()
+
+            preds = model(*batch).view(-1)
+            ys = labels.view(-1)
+
+            if setting.y_transform:
+                ys = std_scaler.inverse_transform(ys.cpu().reshape(-1, 1) / 100)
+                preds = std_scaler.inverse_transform(preds.detach().cpu().numpy().reshape(-1, 1) / 100)
+
             all_preds.append(preds)
             all_ys.append(ys)
 
-        all_preds = np.concatenate(all_preds)
-        all_ys = np.concatenate(all_ys)
-        assert len(all_preds) == len(all_ys), "predictions and labels are in different length"
-        sample_size = len(all_preds)
-        
-        test_loss = mean_squared_error(all_preds, all_ys)
-        test_pearson = pearsonr(all_ys.reshape(-1), all_preds.reshape(-1))[0]
-        test_spearman = spearmanr(all_ys.reshape(-1), all_preds.reshape(-1))[0]
-        if not path.exists('prediction'):
-            mkdir('prediction')
-        save(np.concatenate((np.array(test_index_list[:sample_size]).reshape(-1,1), all_preds.reshape(-1, 1), all_ys.reshape(-1, 1)), axis=1),
-             "prediction/prediction_" + setting.catoutput_output_type + "_testing")
-        
-        if use_wandb:
-            wandb.log({
-                "Test Loss": test_loss,
-                "Test Pearson": test_pearson,
-                "Test Spearman": test_spearman
-            })
+    all_preds = np.concatenate(all_preds)
+    all_ys = np.concatenate(all_ys)
 
-    logger.debug("Testing mse is {0}, Testing pearson correlation is {1!r}, Testing spearman correlation is {2!r}".format(np.mean(test_loss), test_pearson, test_spearman))
+    return {
+        "mse": mean_squared_error(all_preds, all_ys),
+        "pearson": pearsonr(all_preds.ravel(), all_ys.ravel())[0],
+        "spearman": spearmanr(all_preds.ravel(), all_ys.ravel())[0]
+    }
 
-    if not setting.perform_importance_study:
-        return
+def test_best_model(model, test_loader, reorder_tensor, std_scaler, slice_indices, use_wandb=False):
+    if use_wandb:
+        wandb.init(project="Drug combination alpha_fold - Testing best model")
+
+    if setting.load_old_model:
+        model.load_state_dict(load(setting.old_model_path).state_dict())
+
+    metrics = evaluate(model, test_loader, reorder_tensor, std_scaler, slice_indices)
+    logger.info(f"Test MSE: {metrics['mse']:.4f}, Pearson: {metrics['pearson']:.4f}, Spearman: {metrics['spearman']:.4f}")
+    if use_wandb:
+        wandb.log({"Test MSE": metrics['mse'], "Test Pearson": metrics['pearson'], "Test Spearman": metrics['spearman']})
+        wandb.finish()
+        
+
+def train_model_on_fold(fold_idx, partition, X, Y, std_scaler, reorder_tensor,
+                        drug_model, best_drug_model, optimizer, scheduler, use_wandb, slice_indices):
+    if use_wandb:
+        init_wandb(fold_idx)
+    
+    partition_indices = {
+        'train': partition[0],
+        'test1': partition[1],
+        'test2': partition[2],
+        'eval1': partition[3],
+        'eval2': partition[4]
+    }
+
+    std_scaler.fit(Y[partition_indices['train']])
+    if setting.y_transform:
+        Y = std_scaler.transform(Y) * 100
+
+    # Dataloaders
+    training_generator, _, validation_generator, test_generator, \
+    all_data_generator, all_data_generator_total = prepare_splitted_dataloaders(partition_indices, Y.reshape(-1), X)
+
+    train_loop(model = drug_model,
+            best_model = best_drug_model,
+            train_loader = training_generator, 
+            val_loader = validation_generator, 
+            optimizer = optimizer,
+            scheduler = scheduler, 
+            reorder_tensor = reorder_tensor, 
+            std_scaler = std_scaler, 
+            use_wandb=  use_wandb, 
+            slice_indices = slice_indices)
+    
+    if use_wandb:
+        wandb.finish()
+    return training_generator, validation_generator, test_generator, all_data_generator, all_data_generator_total
+        
+def run_kmeans(data, n_clusters, batch_size):
+    kmeans = MiniBatchKMeans(n_clusters=n_clusters, random_state=0, batch_size=batch_size)
+    kmeans.fit(data)
+    return kmeans.cluster_centers_
+
+def compute_shap_importance(model, data, background, method="deep", layers=None):
+    if method == "deep":
+        explainer = shap.DeepExplainer(model, background)
+        return explainer.shap_values(data)
+    elif method == "gradient":
+        importances = []
+        for layer in layers:
+            explainer = shap.GradientExplainer((model, layer), background)
+            values = explainer.shap_values(data)
+            importances.append(values)
+        return np.concatenate(importances, axis=1)
+
+def run_importance_study(
+    setting,
+    all_data_generator_total,
+    all_data_generator,
+    partition,
+    reorder_tensor,
+    slice_indices,
+    device2,
+    best_drug_model,
+    logger
+):
 
     batch_input_importance = []
     batch_out_input_importance = []
     batch_transform_input_importance = []
+
     total_data, _ = next(iter(all_data_generator_total))
     logger.debug("start kmeans")
+
     all_index_ls = partition['train'][:len(partition['train']) // 2] + partition['eval1'] + partition['test1']
-    ### same definition with the one in function generate data generator
-    kmeans = MiniBatchKMeans(n_clusters=len(total_data)//40, random_state=0, batch_size=len(all_index_ls)//8).fit(total_data)
+    n_clusters = max(2, len(total_data) // 40)
+    batch_size = max(1, len(all_index_ls) // 8)
+
+    kmeans_centers = run_kmeans(total_data, n_clusters=n_clusters, batch_size=batch_size)
     logger.debug("fiting finished")
-    total_data = kmeans.cluster_centers_
-    total_data = torch.from_numpy(total_data).float().to(device2)
-    total_data = total_data.contiguous().view(-1, 1, sum(slice_indices) + setting.single_repsonse_feature_length)
-    reorder_tensor.load_raw_tensor(total_data)
-    total_data = reorder_tensor.get_reordered_narrow_tensor()
+
+    total_data_tensor = torch.from_numpy(kmeans_centers).float().to(device2)
+    total_data_tensor = total_data_tensor.contiguous().view(-1, 1, sum(slice_indices) + setting.single_repsonse_feature_length)
+    reorder_tensor.load_raw_tensor(total_data_tensor)
+    total_data_tensor = reorder_tensor.get_reordered_narrow_tensor()
 
     for (local_batch, smiles_a, smiles_b), local_labels in all_data_generator:
-        # Transfer to GPU
-        local_batch, local_labels = local_batch.float().to(device2), local_labels.float().to(device2)
+        local_batch = local_batch.float().to(device2)
         local_batch = local_batch.contiguous().view(-1, 1, sum(slice_indices) + setting.single_repsonse_feature_length)
         reorder_tensor.load_raw_tensor(local_batch)
         local_batch = reorder_tensor.get_reordered_narrow_tensor()
 
         if setting.save_feature_imp_model:
             save(best_drug_model, setting.best_model_path)
-        # Model computations
+
         logger.debug("Start feature importances analysis")
         if setting.save_easy_input_only:
-            e = shap.DeepExplainer(best_drug_model, data=list(total_data))
-            input_importance = e.shap_values(list(local_batch))
+            input_importance = compute_shap_importance(best_drug_model, list(local_batch), list(total_data_tensor), method="deep")
         else:
-            input_importance = []
-            for layer in best_drug_model.linear_layers:
-                cur_e = shap.GradientExplainer((best_drug_model, layer), data=list(total_data))
-                cur_input_importance = cur_e.shap_values(list(local_batch))
-                input_importance.append(cur_input_importance)
-            input_importance = np.concatenate(tuple(input_importance), axis=1)
+            input_importance = compute_shap_importance(best_drug_model, list(local_batch), list(total_data_tensor), method="gradient", layers=best_drug_model.linear_layers)
+
         batch_input_importance.append(input_importance)
         logger.debug("Finished one batch of input importance analysis")
 
         if setting.save_out_imp:
-            e1 = shap.GradientExplainer((best_drug_model, best_drug_model.out), data=list(total_data))
-            out_input_shap_value = e1.shap_values(list(local_batch))
-            batch_out_input_importance.append(out_input_shap_value)
+            out_input_importance = compute_shap_importance(best_drug_model, list(local_batch), list(total_data_tensor), method="gradient", layers=[best_drug_model.out])
+            batch_out_input_importance.append(out_input_importance)
             logger.debug("Finished one batch of out input importance analysis")
 
         if setting.save_inter_imp:
-            transform_input_importance = []
-            for layer in best_drug_model.dropouts:
-                cur_e = shap.GradientExplainer((best_drug_model, layer), data=list(total_data))
-                cur_transform_input_shap_value = cur_e.shap_values(list(local_batch))
-                transform_input_importance.append(cur_transform_input_shap_value)
-            transform_input_importance = np.concatenate(tuple(transform_input_importance), axis=1)
+            inter_input_importance = compute_shap_importance(best_drug_model, list(local_batch), list(total_data_tensor), method="gradient", layers=best_drug_model.dropouts)
+            batch_transform_input_importance.append(inter_input_importance)
+            logger.debug("Finished one batch of importance analysis")
 
-            batch_transform_input_importance.append(transform_input_importance)
-        logger.debug("Finished one batch of importance analysis")
-    batch_input_importance = np.concatenate(tuple(x[0] for x in batch_input_importance), axis=0)
+    # Save and log results
+    batch_input_importance = np.concatenate([x[0] for x in batch_input_importance], axis=0)
     pickle.dump(batch_input_importance, open(setting.input_importance_path, 'wb+'))
     wandb.log({"Input Importance": wandb.Histogram(batch_input_importance.flatten())})
     logger.debug("Finished all batches of input importance analysis")
 
     if setting.save_out_imp:
-        batch_out_input_importance = np.concatenate(tuple(batch_out_input_importance), axis=0)
+        batch_out_input_importance = np.concatenate(batch_out_input_importance, axis=0)
         pickle.dump(batch_out_input_importance, open(setting.out_input_importance_path, 'wb+'))
 
     if setting.save_inter_imp:
-        batch_transform_input_importance = np.concatenate(tuple(batch_transform_input_importance), axis=0)
+        batch_transform_input_importance = np.concatenate(batch_transform_input_importance, axis=0)
         pickle.dump(batch_transform_input_importance, open(setting.transform_input_importance_path, 'wb+'))
 
 
+def run(use_wandb: bool, ):
+    if not use_wandb:
+        environ["WANDB_MODE"] = "dryrun"
 
+    std_scaler, X, Y, drug_features_length, cellline_features_length = setup_data()
+    reorder_tensor = setup_tensor_reorganizer(drug_features_length, cellline_features_length)
+    
+    drug_model, best_drug_model, optimizer, scheduler = setup_model_and_optimizer(reorder_tensor)
+    
+    slice_indices = drug_features_length + drug_features_length + cellline_features_length
+    
+    split_func = trans_synergy.data.trans_synergy_data.DataPreprocessor.regular_train_eval_test_split
+
+    for fold_idx, partition in enumerate(tqdm(split_func(fold='fold', test_fold=4), desc="Folds", total=1)):
+        training_generator, validation_generator, test_generator, all_data_generator, all_data_generator_total = train_model_on_fold(fold_idx, partition, X, Y, std_scaler, reorder_tensor,
+                            drug_model, best_drug_model, optimizer, scheduler, use_wandb, slice_indices)
+
+        test_best_model(best_drug_model, test_generator, reorder_tensor, std_scaler, slice_indices, use_wandb)
+        if setting.perform_importance_study:
+            run_importance_study( setting, all_data_generator_total, all_data_generator, partition, reorder_tensor, slice_indices,
+                device2, best_drug_model, logger)
+        
+        
