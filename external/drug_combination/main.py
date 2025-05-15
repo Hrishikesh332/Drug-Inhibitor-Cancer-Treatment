@@ -23,7 +23,7 @@ _CLI_INPUT_TO_CONFIG_MAP = {
 
 def train_trans_synergy(
         settings_choice: str = "gene_dependency",
-        use_wandb: bool = False,
+        use_wandb: bool = True,
 ):
     if settings_choice not in _CLI_INPUT_TO_CONFIG_MAP:
         raise ValueError(f"The setting {settings_choice} is not recognised. Please choose one of: {_CLI_INPUT_TO_CONFIG_MAP.keys()}")
