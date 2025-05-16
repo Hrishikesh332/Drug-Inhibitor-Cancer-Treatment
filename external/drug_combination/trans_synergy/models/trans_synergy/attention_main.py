@@ -1,6 +1,8 @@
 import logging
 import pickle
 import random
+import shutil
+import wandb
 from os import environ, makedirs, path, sep
 
 import numpy as np
@@ -18,7 +20,6 @@ from tqdm import tqdm
 
 import trans_synergy.data.trans_synergy_data
 import trans_synergy.settings
-import wandb
 from trans_synergy import device2
 from trans_synergy.models.other import drug_drug
 from trans_synergy.models.trans_synergy import attention_model
@@ -331,7 +332,6 @@ def save_model(model, save_path, fold):
     try:
         wandb.save(model_path, base_path = save_path, policy="now")
     except OSError as e: # Windows throws OS errors because of symlinks https://github.com/wandb/wandb/issues/1370
-        import shutil
         wandb_model_path = path.join(wandb.run.dir, f"fold_{fold}_model.pt")
         shutil.copy(model_path, wandb_model_path)
         wandb.save(wandb_model_path, base_path = wandb.run.dir)
