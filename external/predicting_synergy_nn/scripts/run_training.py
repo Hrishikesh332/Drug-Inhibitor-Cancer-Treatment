@@ -18,7 +18,7 @@ def run_fold(fold, base_cfg):
     print(f"Running: {cmd}")
     subprocess.run(cmd, shell=True)
     
-    #os.remove(temp_cfg)
+    os.remove(temp_cfg)
     
     print(f"Completed fold {fold}")
 
