@@ -227,9 +227,8 @@ def train_model(cfg, tr_dl, ts_dl,sc, in_dim):
             'final_test_spearman': final_spear
         })
         
-        #added  policy="now" becuase having this error OSError: [WinError 1314] A required privilege is not held by the client
-        wandb.save(os.path.join(model_dir, f'final_f{fold}.pt'), base_path=".", policy="now")
-        wandb.save(os.path.join(model_dir, f'best_f{fold}.pt'), base_path=".", policy="now")
+        wandb.save(os.path.join(model_dir, f'final_f{fold}.pt'))
+        wandb.save(os.path.join(model_dir, f'best_f{fold}.pt'))
 
 
         
