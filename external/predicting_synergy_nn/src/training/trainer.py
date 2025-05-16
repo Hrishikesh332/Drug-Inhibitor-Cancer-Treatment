@@ -91,13 +91,13 @@ def train_model(cfg, tr_dl, ts_dl,sc, in_dim):
     data_dir = str(cfg.get('data_dir', 'data'))
     out_dir = str(cfg.get('out_dir', 'outputs'))
     
-    print("Configuration parameters:")
-    print(f"  fold: {fold} (type: {type(fold)})")
-    print(f"  arch: {arch} (type: {type(arch)})")
-    print(f"  batch: {batch} (type: {type(batch)})")
-    print(f"  lr: {lr} (type: {type(lr)})")
-    print(f"  epochs: {epochs} (type: {type(epochs)})")
-    print(f"  drop: {drop} (type: {type(drop)})")
+    #print("Configuration parameters:")
+    #print(f"  fold: {fold} (type: {type(fold)})")
+    #print(f"  arch: {arch} (type: {type(arch)})")
+    #print(f"  batch: {batch} (type: {type(batch)})")
+    #print(f"  lr: {lr} (type: {type(lr)})")
+    #print(f"  epochs: {epochs} (type: {type(epochs)})")
+    #print(f"  drop: {drop} (type: {type(drop)})")
     
     model_dir = os.path.join(out_dir, 'models')
     log_dir = os.path.join(out_dir, 'logs')
@@ -109,7 +109,7 @@ def train_model(cfg, tr_dl, ts_dl,sc, in_dim):
     start = time.time()
     
     dev = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"Using: {dev}")
+    #print(f"Using: {dev}")
     
     if use_wb:
         wandb.init(project=wb_proj, name=wb_run, 
@@ -124,12 +124,12 @@ def train_model(cfg, tr_dl, ts_dl,sc, in_dim):
     
     if tr_dl is None or ts_dl is None or sc is None or in_dim is None:
         x_tr, y_tr, x_ts, y_ts, sc, tr_dl, ts_dl = load_data(cfg, data_dir, fold, batch=batch)
-        print(f"Train shape: {x_tr.shape}, Test shape: {x_ts.shape}")
+        #print(f"Train shape: {x_tr.shape}, Test shape: {x_ts.shape}")
 
     model = SynergyModel(in_dim=in_dim, arch=arch, drop=drop).to(dev)
     crit = nn.MSELoss()
     
-    print(f"Creating optimizer with learning rate: {lr} (type: {type(lr)})")
+    #print(f"Creating optimizer with learning rate: {lr} (type: {type(lr)})")
     opt = optim.Adam(model.parameters(), lr=lr)
     
     try:
@@ -141,7 +141,7 @@ def train_model(cfg, tr_dl, ts_dl,sc, in_dim):
             verbose=True
         )
         sched = test_scheduler
-        print("Using scheduler with verbose=True")
+        #print("Using scheduler with verbose=True")
     except TypeError:
         sched = optim.lr_scheduler.ReduceLROnPlateau(
             optimizer=opt,
@@ -149,9 +149,9 @@ def train_model(cfg, tr_dl, ts_dl,sc, in_dim):
             factor=0.5,
             patience=50
         )
-        print("Using scheduler without verbose parameter")
+        #print("Using scheduler without verbose parameter")
     
-    print(model)
+    #print(model)
     
     tr_loss = []
     tr_pear = []
@@ -162,7 +162,7 @@ def train_model(cfg, tr_dl, ts_dl,sc, in_dim):
     best_val = -1.0
     step = 0
     
-    print("Starting training...")
+    #print("Starting training...")
     for e in tqdm(range(1, epochs + 1)):
         tl, tp, ts = train_epoch(model, tr_dl, opt, crit, dev)
         vl, vp, vs = eval_model(model, ts_dl, crit, dev)
@@ -218,7 +218,7 @@ def train_model(cfg, tr_dl, ts_dl,sc, in_dim):
 
     final_loss, final_pear, final_spear = eval_model(model, ts_dl, crit, dev)
     
-    print(f"Final Test - Loss: {final_loss:.4f}, Pearson: {final_pear:.4f}, Spearman: {final_spear:.4f}")
+    #print(f"Final Test - Loss: {final_loss:.4f}, Pearson: {final_pear:.4f}, Spearman: {final_spear:.4f}")
     
     if use_wb:
         wandb.log({
@@ -243,7 +243,7 @@ def train_model(cfg, tr_dl, ts_dl,sc, in_dim):
         f.write(f"Final Spearman: {final_spear:.4f}\n")
         f.write(f"Best Val Spearman: {best_val:.4f}\n")
     
-    print(f"Training done in {time.time() - start:.2f} seconds")
+    #print(f"Training done in {time.time() - start:.2f} seconds")
     
     return {
         'model': model,
