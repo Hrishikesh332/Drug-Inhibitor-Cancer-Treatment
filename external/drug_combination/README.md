@@ -3,6 +3,10 @@
 In many patients, a tumor’s innate or acquired resistance to a given therapy will render the treatment ineffective. To increase therapeutic options and to overcome drug resistance, cancer researchers have been actively investigating drug combinations.
 The repository was originally set up for two gpu cards, however we made it so that only one cuda device or none is allowed.
 
+## Rerun & weights
+Please visit our [rerun report](https://wandb.ai/ninazukowska/Drug%20combination%20TRANSYNERGY%20fold_0/reports/Rerun-Transynergy--VmlldzoxMjgwNjk0Nw).
+And access [drive](https://drive.google.com/file/d/1wZ-1KFirBBdy1egMXxBB7Sgx0uQm6Jue/view?usp=sharing) in order to access the mdoel weights from our rerun.
+
 ## Build environment (dependencies)
 
 ### 1. Create environment

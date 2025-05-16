@@ -1,7 +1,9 @@
 import logging
 import pickle
 import random
-from os import environ, mkdir, path, sep
+import shutil
+import wandb
+from os import environ, makedirs, path, sep
 
 import numpy as np
 import pandas as pd
@@ -18,7 +20,6 @@ from tqdm import tqdm
 
 import trans_synergy.data.trans_synergy_data
 import trans_synergy.settings
-import wandb
 from trans_synergy import device2
 from trans_synergy.models.other import drug_drug
 from trans_synergy.models.trans_synergy import attention_model
@@ -189,15 +190,12 @@ def setup_model_and_optimizer(reorder_tensor):
 def enumerate_splits(split_func):
     return tqdm(split_func(fold='fold', test_fold=4), desc="Folds", total=1)
 
-def init_wandb(use_wandb: bool, fold_idx: int = None, testing: bool = False):
-    if not use_wandb:
-        return None
-
+def init_wandb(fold_idx: int = None, testing: bool = False):
     if testing:
-        wandb.init(project="Drug combination TRANSYNERGY")
+        wandb.init(project="Drug combination TRANSYNERGY Testing")
     else:
         wandb.init(
-            project=f"Drug combination alpha_fold_{fold_idx}",
+            project=f"Drug combination TRANSYNERGY fold_{fold_idx}",
             name=path.basename(setting.run_dir).rsplit(sep, 1)[-1] + '_' + setting.data_specific[:15] + '_' + str(random_seed),
             notes=setting.data_specific
         )
@@ -269,7 +267,7 @@ def train_loop(model, best_model, train_loader, val_loader, optimizer, scheduler
     
     return best_model
 
-def evaluate(model, data_loader, reorder_tensor, std_scaler, slice_indices):
+def evaluate(model, data_loader, reorder_tensor, std_scaler, slice_indices, log_model=False):
     model.eval()
     all_preds, all_ys = [], []
 
@@ -293,7 +291,10 @@ def evaluate(model, data_loader, reorder_tensor, std_scaler, slice_indices):
 
     all_preds = np.concatenate(all_preds)
     all_ys = np.concatenate(all_ys)
-
+    
+    if log_model:
+        save_model(model, setting.run_dir, fold="test")
+    
     return {
         "mse": mean_squared_error(all_preds, all_ys),
         "pearson": pearsonr(all_preds.ravel(), all_ys.ravel())[0],
@@ -302,17 +303,38 @@ def evaluate(model, data_loader, reorder_tensor, std_scaler, slice_indices):
 
 def test_best_model(model, test_loader, reorder_tensor, std_scaler, slice_indices, use_wandb=False):
     if use_wandb:
-        wandb.init(project="Drug combination alpha_fold - Testing best model")
+        init_wandb(testing=True)
 
     if setting.load_old_model:
         model.load_state_dict(load(setting.old_model_path).state_dict())
 
-    metrics = evaluate(model, test_loader, reorder_tensor, std_scaler, slice_indices)
+    metrics = evaluate(model, test_loader, reorder_tensor, std_scaler, slice_indices, log_model=True)
     logger.info(f"Test MSE: {metrics['mse']:.4f}, Pearson: {metrics['pearson']:.4f}, Spearman: {metrics['spearman']:.4f}")
     if use_wandb:
         wandb.log({"Test MSE": metrics['mse'], "Test Pearson": metrics['pearson'], "Test Spearman": metrics['spearman']})
         wandb.finish()
-        
+    
+def save_model(model, save_path, fold):
+    """
+    Saves the model to a given path with a fold-specific suffix.
+
+    Args:
+        model (torch.nn.Module): The model to save.
+        path (str): Base directory where the model should be saved.
+        fold (str or int): Fold index to append to the path.
+    """
+    # construct the full save path
+    model_filename = f"fold_{fold}_model.pt"
+    model_path = path.join(save_path, model_filename)
+    makedirs(path.dirname(model_path), exist_ok=True)
+    torch.save(model, model_path)
+    
+    try:
+        wandb.save(model_path, base_path = save_path, policy="now")
+    except OSError as e: # Windows throws OS errors because of symlinks https://github.com/wandb/wandb/issues/1370
+        wandb_model_path = path.join(wandb.run.dir, f"fold_{fold}_model.pt")
+        shutil.copy(model_path, wandb_model_path)
+        wandb.save(wandb_model_path, base_path = wandb.run.dir)
 
 def train_model_on_fold(fold_idx, partition, X, Y, std_scaler, reorder_tensor,
                         drug_model, best_drug_model, optimizer, scheduler, use_wandb, slice_indices):
@@ -335,7 +357,7 @@ def train_model_on_fold(fold_idx, partition, X, Y, std_scaler, reorder_tensor,
     training_generator, _, validation_generator, test_generator, \
     all_data_generator, all_data_generator_total = prepare_splitted_dataloaders(partition_indices, Y.reshape(-1), X)
 
-    train_loop(model = drug_model,
+    best_model = train_loop(model = drug_model,
             best_model = best_drug_model,
             train_loader = training_generator, 
             val_loader = validation_generator, 
@@ -345,7 +367,9 @@ def train_model_on_fold(fold_idx, partition, X, Y, std_scaler, reorder_tensor,
             std_scaler = std_scaler, 
             use_wandb=  use_wandb, 
             slice_indices = slice_indices)
-    
+
+    save_model(best_model, setting.run_dir, fold_idx)
+
     if use_wandb:
         wandb.finish()
     return training_generator, validation_generator, test_generator, all_data_generator, all_data_generator_total
@@ -441,7 +465,7 @@ def run_importance_study(
         pickle.dump(batch_transform_input_importance, open(setting.transform_input_importance_path, 'wb+'))
 
 
-def run(use_wandb: bool, ):
+def run(use_wandb: bool = True):
     if not use_wandb:
         environ["WANDB_MODE"] = "dryrun"
 
