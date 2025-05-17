@@ -1,15 +1,36 @@
 import argparse
+from typing import Callable
+from dataclasses import dataclass
 from explainability.utils import load_transynergy_model, load_biomining_model
 from explainability.am import run_activation_maximization
 
 
-def load_model(model_name):
-    if model_name == 'transynergy':
-        return load_transynergy_model()
-    elif model_name == 'biomining':
-        return load_biomining_model()
-    else:
+@dataclass
+class ModelConfig:
+    name: str
+    loader: Callable
+    path: str
+
+MODEL_REGISTRY = {
+    "biomining": ModelConfig(
+        name="biomining",
+        loader=load_biomining_model,
+        path="external/predicting_synergy_nn/outputs/models/best_f1.pt"
+    ),
+    "transynergy": ModelConfig(
+        name="transynergy",
+        loader=load_transynergy_model,
+        path="external/drug_combination/trans_synergy/data/models/fold_test_model.pt"
+    )
+}
+
+
+def load_model(model_name: str):
+    if model_name not in MODEL_REGISTRY:
         raise ValueError(f"Unknown model: {model_name}")
+
+    cfg = MODEL_REGISTRY[model_name]
+    return cfg.loader(model_path=cfg.path)
 
 def run_explanation(model, model_name, method, input_data):
     if method == 'shap':
