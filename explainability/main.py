@@ -1,4 +1,5 @@
 import argparse
+import logging
 from typing import Callable
 from dataclasses import dataclass
 
@@ -47,13 +48,23 @@ def load_data(model_name: str):
     return cfg.data_loader()
 
 
-def run_explanation(model, model_name, method, X, Y):
+def run_explanation(model, model_name, method, X, Y, logger):
     if method == 'shap':
         raise NotImplementedError("SHAP explainability not yet implemented.")
     elif method == 'anchors':
         raise NotImplementedError("Anchors explainability not yet implemented.")
     elif method == 'activation_max':
-        run_activation_maximization(model, model_name, X)
+        for regularization in [None, "l2", "l1"]:
+            for maximize in [True, False]:
+                logger.info(f"Running activation maximization with regularization={regularization}, maximize={maximize}")
+                run_activation_maximization(
+                    model, 
+                    model_name, 
+                    X,
+                    logger,
+                    regularization=regularization,
+                    maximize=maximize,
+                )
     elif method == 'integrated_gradients':
         raise NotImplementedError("Integrated gradients not yet implemented.")
     else:
@@ -61,9 +72,12 @@ def run_explanation(model, model_name, method, X, Y):
 
 def main():
     parser = argparse.ArgumentParser(description="Run explainability on model outputs")
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.INFO)
+    
     parser.add_argument('--model', 
                         type=str, 
-                        default='transynergy',
+                        default='biomining',
                         choices=MODEL_DATA_REGISTRY.keys(),
                         help='Which model to explain')
     parser.add_argument('--method', 
@@ -79,7 +93,7 @@ def main():
 
     X, Y = load_data(args.model)
 
-    run_explanation(model, args.model, args.method, X, Y)
+    run_explanation(model, args.model, args.method, X, Y, logger)
 
 
 if __name__ == '__main__': 

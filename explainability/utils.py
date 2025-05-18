@@ -1,13 +1,13 @@
 import torch
 import tqdm
-import pathlib as path
+from pathlib import Path
 import wandb
 import shutil
 import trans_synergy
 from trans_synergy.models.trans_synergy.attention_main import setup_data as setup_data_transynergy
 from external.predicting_synergy_nn.src.utils.data_loader import CVDatasetHandler
 from typing import Literal
-
+from external.predicting_synergy_nn.src.models.architectures import SynergyModel
 
 def load_transynergy_model(model_path: str, map_location: str = 'cpu'):
     """
@@ -25,12 +25,16 @@ def load_transynergy_model(model_path: str, map_location: str = 'cpu'):
     return model
     
 
-def load_biomining_model():
+def load_biomining_model(model_path: str, map_location: str = 'cpu'):
     """
     Load the Biomining model from the specified path.
     """
-    # Placeholder for actual model loading logic
-    return "Biomining Model Loaded"
+    state_dict = torch.load(model_path, map_location=map_location, weights_only=True)
+    model = SynergyModel(arch = 'std', in_dim=33)
+    
+    model.load_state_dict(state_dict)
+    model.eval()
+    return model
 
 
 def load_transynergy_data(split:Literal['train', 'test'] = 'train'):
@@ -76,6 +80,6 @@ def save_with_wandb(object_path, name_of_object):
     try:
         wandb.save(object_path, policy="now")
     except OSError as e: # Windows throws OS errors because of symlinks https://github.com/wandb/wandb/issues/1370
-        wandb_model_path = path.join(wandb.run.dir, f"{name_of_object}.pt")
-        shutil.copy(object_path, wandb_model_path)
-        wandb.save(wandb_model_path, base_path = wandb.run.dir)
+        wandb_path = str(Path(wandb.run.dir) / f"{name_of_object}.pt")
+        shutil.copy(object_path, wandb_path)
+        wandb.save(wandb_path, base_path = wandb.run.dir)
