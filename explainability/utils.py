@@ -1,7 +1,12 @@
 import torch
 import tqdm
+import pathlib as path
+import wandb
+import shutil
 import trans_synergy
 from trans_synergy.models.trans_synergy.attention_main import setup_data as setup_data_transynergy
+from external.predicting_synergy_nn.src.utils.data_loader import CVDatasetHandler
+from typing import Literal
 
 
 def load_transynergy_model(model_path: str, map_location: str = 'cpu'):
@@ -28,7 +33,7 @@ def load_biomining_model():
     return "Biomining Model Loaded"
 
 
-def load_data_transynergy(data_path: str):
+def load_transynergy_data(split:Literal['train', 'test'] = 'train'):
     """
     Load the TransyNet data from the specified path.
 
@@ -38,17 +43,39 @@ def load_data_transynergy(data_path: str):
     Returns:
         DataFrame: Loaded data.
     """
-    std_scaler, X, Y, _, _ = setup_data_transynergy()
+    std_scaler, X, Y, _, _= setup_data_transynergy()
     split_func = trans_synergy.data.trans_synergy_data.DataPreprocessor.regular_train_eval_test_split
-
-    for fold_idx, partition in enumerate(tqdm(split_func(fold='fold', test_fold=4), desc="Folds", total=1)):
-        std_scaler.fit(Y[partition['train']])
+    partition = next(split_func(fold='fold', test_fold=4))
+    partition_indices = {
+            'train': partition[0],
+            'test1': partition[1],
+            'test2': partition[2],
+            'eval1': partition[3],
+            'eval2': partition[4]
+        }
+    
+    std_scaler.fit(Y[partition_indices['train']])
     Y = std_scaler.transform(Y)
-    return X, Y
+    X_res = X[partition_indices[split]]
+    Y_res = Y[partition_indices[split]]
+    
+    return X_res, Y_res
 
-def load_data_biomining(data_path: str):
+def load_biomining_data(split:Literal['train', 'test'] = 'train'):
     """
     Load the Biomining data from the specified path.
     """
-    # Placeholder for actual data loading logic
-    return "Biomining Data Loaded"
+    handler = CVDatasetHandler(data_dir='external/predicting_synergy_nn/data')
+    if split == 'train':
+        X_res, Y_res = handler.get_dataset(type='alltrain')
+    elif split == 'test':
+        X_res, Y_res = handler.get_dataset(type='test')
+    return X_res, Y_res 
+
+def save_with_wandb(object_path, name_of_object):
+    try:
+        wandb.save(object_path, policy="now")
+    except OSError as e: # Windows throws OS errors because of symlinks https://github.com/wandb/wandb/issues/1370
+        wandb_model_path = path.join(wandb.run.dir, f"{name_of_object}.pt")
+        shutil.copy(object_path, wandb_model_path)
+        wandb.save(wandb_model_path, base_path = wandb.run.dir)

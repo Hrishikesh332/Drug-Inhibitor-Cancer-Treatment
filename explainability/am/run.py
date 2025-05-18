@@ -1,57 +1,77 @@
+import os
 import torch
-import matplotlib.pyplot as plt
-import wandb
 import numpy as np
-from dataclasses import asdict
-from dataclasses import dataclass
+import wandb
+from tqdm import trange
+from dataclasses import dataclass, asdict
 from typing import Literal, Optional
-
+from explainability.utils import save_with_wandb
+from trans_synergy.utils import set_seed
 
 @dataclass
 class ActivationMaximizationConfig:
     paper: Literal["biomining", "transynergy"]
     maximize: bool = True
     num_trials: int = 5
-    input_bounds: tuple[float, float] = (0, 1)  # Change if needed
+    input_bounds: tuple[float, float] = (0, 1)
     steps: int = 1000
     lr: float = 0.01
     early_stopping: bool = True
     patience: int = 50
+    regularization: Optional[Literal["l1", "l2"]] = None 
+    cell_drug_feat_len : int = 2402
+    l1_lambda: float = 1e-3 # hyperparams for regularisation
+    l2_lambda: float = 1e-3 # hyperparams for regularisation
 
 def run_activation_maximization(
     model: torch.nn.Module,
-    X: torch.Tensor,
-    y: Optional[torch.Tensor],
     paper: Literal["biomining", "transynergy"],
+    X: torch.Tensor,
+    **kwargs
 ):
-    config = ActivationMaximizationConfig(paper=paper)
-    wandb.init(project=f"EXPLAINABILITY on {config.paper} activation-maximization", config=config.__dict__)
-    model.eval()
+    input_min = X.min().item()
+    input_max = X.max().item()
+    input_bounds = (input_min, input_max)
+    
+    input_shape = X[0].shape
+    
+    config = ActivationMaximizationConfig(paper=paper, input_bounds=input_bounds, **kwargs)
+    minimax = "max" if config.maximize else "min"
+    
+    wandb.init(project=f"EXPLAINABILITY on {config.paper} activation-maximization ({minimax})", config=asdict(config))
 
-    input_shape = X[0].shape if config.paper == "biomining" else getattr(model, "input_shape", X[0].shape)
+    device = next(model.parameters()).device
 
     for trial in range(config.num_trials):
         seed = trial
-        torch.manual_seed(seed)
-        np.random.seed(seed)
+        set_seed(trial)
 
-        input_tensor = torch.randn(input_shape, requires_grad=True, device=next(model.parameters()).device)
+        input_tensor = torch.randn(input_shape, requires_grad=True, device=device)
+        input_reordered = input_tensor.view(1, 3, config.cell_drug_feat_len).clone().detach().requires_grad_(True)
 
-        optimizer = torch.optim.Adam([input_tensor], lr=config.lr)
+        optimizer = torch.optim.Adam([input_reordered], lr=config.lr)
 
         best_val = float("-inf") if config.maximize else float("inf")
-        best_input = input_tensor.clone()
+        best_input = input_reordered.clone()
         steps_without_improvement = 0
 
-        for step in range(config.steps):
+        for step in trange(config.steps, desc=f"Trial {trial+1} steps"):
             optimizer.zero_grad()
-            output = model(input_tensor.unsqueeze(0))  # add batch dim
 
+            output = model(input_reordered)  # add batch dim
             out_val = output.squeeze()
             loss = -out_val if config.maximize else out_val
 
+            # regularization
+            if config.regularization == "l1":
+                loss += config.l1_lambda * input_tensor.abs().sum()
+            elif config.regularization == "l2":
+                loss += config.l2_lambda * input_tensor.norm(p=2)
+
             loss.backward()
             optimizer.step()
+            
+            wandb.log({f"trial_{trial}/loss": loss.item(), "step": step})
 
             with torch.no_grad():
                 input_tensor.clamp_(*config.input_bounds)
@@ -68,14 +88,19 @@ def run_activation_maximization(
             if config.early_stopping and steps_without_improvement >= config.patience:
                 print(f"[Trial {trial}] Early stopping at step {step} with value {best_val:.4f}")
                 break
-
-        img_or_tensor = best_input.detach().cpu().numpy()
+            
+        original_best_input = best_input.view(input_shape)
         label = f"{'max' if config.maximize else 'min'}_seed_{seed}"
+        img_or_tensor = original_best_input.detach().cpu().numpy()
 
-        if best_input.dim() == 3:  # image (C, H, W)
-            wandb.log({label: wandb.Image(img_or_tensor.transpose(1, 2, 0))})
-        else:
-            wandb.log({label: wandb.Histogram(img_or_tensor)})
+        save_path = f"explainability/am/results/{paper}/best_input_trial_{trial}.pt"
+        
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        
+        torch.save(original_best_input, save_path)
+        wandb.log({label: wandb.Histogram(img_or_tensor)})
+        
+        save_with_wandb(save_path, name_of_object=f"{paper}_method_am_{minimax}_trial_{trial}.pt")
 
         print(f"[{label}] Best output value: {best_val:.4f}")
 
