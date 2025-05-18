@@ -142,4 +142,4 @@ if __name__ == "__main__":
     if args.mode == "transynergy":
         run_transynergy(timeout=args.timeout, n_iter=args.n_iter, models=models)
     elif args.mode == "biomining":
-        run_biomining(fold=args.fold, timeout=args.timeout, n_iter=args.n_iter)
+        run_biomining(fold=args.fold, timeout=args.timeout, n_iter=args.n_iter, models=models)
