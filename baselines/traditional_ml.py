@@ -1,21 +1,28 @@
+import multiprocessing
+import multiprocessing.connection
+import os
+import tempfile
+from typing import Any, Tuple, Type
+
+import joblib
+import numpy as np
+from catboost import CatBoostRegressor
+from scipy.stats import pearsonr, spearmanr
+from sklearn.base import BaseEstimator
 from sklearn.ensemble import RandomForestRegressor
-from scipy.stats import spearmanr, pearsonr
-from sklearn.svm import SVR
-from sklearn.tree import DecisionTreeRegressor
 from sklearn.metrics import mean_squared_error
 from sklearn.model_selection import ParameterSampler
+from sklearn.svm import SVR
+from sklearn.tree import DecisionTreeRegressor
 from tqdm import tqdm
-import joblib
-import wandb
-import numpy as np
-import tempfile, os, joblib, multiprocessing as mp
-from sklearn.base import BaseEstimator
-from typing import Tuple
 
+import wandb
+
+RegressorClass = Type[Any]
 
 def _train_model_in_subprocess(
-            result_sender: mp.connection.Connection,
-            model_class: BaseEstimator,
+            result_sender: multiprocessing.connection.Connection,
+            model_class: RegressorClass,
             params: dict,
             X_train: np.ndarray,
             y_train: np.ndarray,
@@ -38,8 +45,8 @@ def train_model_with_timeout(model_class: BaseEstimator,
                              X_train: np.ndarray,
                              y_train: np.ndarray, 
                              timeout: int=60):
-    result_receiver, result_sender = mp.Pipe(duplex=False)
-    p = mp.Process(
+    result_receiver, result_sender = multiprocessing.Pipe(duplex=False)
+    p = multiprocessing.Process(
         target=_train_model_in_subprocess,
         args=(result_sender, model_class, params, X_train, y_train),
     )
@@ -70,7 +77,14 @@ def init_wandb(model_name: str, hyperam_suffix: str,  fold_idx: int = None, pape
 
     return table_val, table_test
 
-def get_model(name: str) -> Tuple[BaseEstimator, dict]:
+def get_model(name: str) -> Tuple[RegressorClass, dict]:
+    if name == 'catboost':
+        return CatBoostRegressor, {
+            'learning_rate': [0.03, 0.06, 0.1],
+            'depth': [3, 6, 9],
+            'l2_leaf_reg': [2, 4, 6],
+            'boosting_type': ['Ordered', 'Plain']
+        }
     if name == 'random_forest':
         return RandomForestRegressor, {
             'n_estimators': [100, 200, 500],
@@ -116,11 +130,11 @@ def train_and_eval_model(
     output_path=None,
     scoring='mean_squared_error',
     logger=None, 
-    scaler = None,
     n_iter = 15,
     paper = None,
     timeout = 120,
 ):
+    print(f"Training and evaluating {model_name}...")
     model_class, param_grid = get_model(model_name)
     table, test_table = init_wandb(model_name, "hyperparam_tuning", fold_idx=fold_idx, paper = paper)
     
