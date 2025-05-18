@@ -1,12 +1,12 @@
 import os
 import torch
-import numpy as np
 import wandb
 from tqdm import trange
 from dataclasses import dataclass, asdict
 from typing import Literal, Optional
 from explainability.utils import save_with_wandb
 from trans_synergy.utils import set_seed
+from logging import Logger
 
 @dataclass
 class ActivationMaximizationConfig:
@@ -14,12 +14,13 @@ class ActivationMaximizationConfig:
     maximize: bool = True
     num_trials: int = 5
     input_bounds: tuple[float, float] = (0, 1)
-    steps: int = 1000
+    steps: int = 2000
     lr: float = 0.01
     early_stopping: bool = True
     patience: int = 50
-    regularization: Optional[Literal["l1", "l2"]] = None 
-    cell_drug_feat_len : int = 2402
+    regularization: Optional[Literal["l1", "l2"]] = None
+    cell_drug_feat_len_transynergy : int = 2402
+    cell_drug_feat_len_biomining: int = 33 
     l1_lambda: float = 1e-3 # hyperparams for regularisation
     l2_lambda: float = 1e-3 # hyperparams for regularisation
 
@@ -27,6 +28,7 @@ def run_activation_maximization(
     model: torch.nn.Module,
     paper: Literal["biomining", "transynergy"],
     X: torch.Tensor,
+    logger: Logger,
     **kwargs
 ):
     input_min = X.min().item()
@@ -38,7 +40,9 @@ def run_activation_maximization(
     config = ActivationMaximizationConfig(paper=paper, input_bounds=input_bounds, **kwargs)
     minimax = "max" if config.maximize else "min"
     
-    wandb.init(project=f"EXPLAINABILITY on {config.paper} activation-maximization ({minimax})", config=asdict(config))
+    wandb.init(project=f"EXPLAINABILITY on {config.paper} activation-maximization ({minimax})", 
+               config=asdict(config),
+               name=f"{paper}_{minimax}_activation_maximization_reg_{config.regularization}",)
 
     device = next(model.parameters()).device
 
@@ -47,18 +51,22 @@ def run_activation_maximization(
         set_seed(trial)
 
         input_tensor = torch.randn(input_shape, requires_grad=True, device=device)
-        input_reordered = input_tensor.view(1, 3, config.cell_drug_feat_len).clone().detach().requires_grad_(True)
+        
+        if config.paper == "transynergy": # Try fixing in some other way: TODO
+            input_tensor = input_tensor.view(1, 3, config.cell_drug_feat_len_transynergy).clone().detach().requires_grad_(True)
+        elif config.paper == "biomining":
+            input_tensor = input_tensor.view(1,  config.cell_drug_feat_len_biomining).clone().detach().requires_grad_(True)
 
-        optimizer = torch.optim.Adam([input_reordered], lr=config.lr)
+        optimizer = torch.optim.Adam([input_tensor], lr=config.lr)
 
         best_val = float("-inf") if config.maximize else float("inf")
-        best_input = input_reordered.clone()
+        best_input = input_tensor.clone()
         steps_without_improvement = 0
 
         for step in trange(config.steps, desc=f"Trial {trial+1} steps"):
             optimizer.zero_grad()
 
-            output = model(input_reordered)  # add batch dim
+            output = model(input_tensor)  # add batch dim
             out_val = output.squeeze()
             loss = -out_val if config.maximize else out_val
 
@@ -71,7 +79,9 @@ def run_activation_maximization(
             loss.backward()
             optimizer.step()
             
-            wandb.log({f"trial_{trial}/loss": loss.item(), "step": step})
+            wandb.log({f"trial_{trial}/loss": loss.item(), 
+                       f"trial_{trial}/output": out_val,
+                       "step": step})
 
             with torch.no_grad():
                 input_tensor.clamp_(*config.input_bounds)
@@ -86,14 +96,15 @@ def run_activation_maximization(
                     steps_without_improvement += 1
 
             if config.early_stopping and steps_without_improvement >= config.patience:
-                print(f"[Trial {trial}] Early stopping at step {step} with value {best_val:.4f}")
+                logger.info(f"[Trial {trial}] Early stopping at step {step} with value {best_val:.4f}")
                 break
             
         original_best_input = best_input.view(input_shape)
         label = f"{'max' if config.maximize else 'min'}_seed_{seed}"
         img_or_tensor = original_best_input.detach().cpu().numpy()
-
-        save_path = f"explainability/am/results/{paper}/best_input_trial_{trial}.pt"
+        
+        regularization_method = config.regularization if config.regularization else "none"
+        save_path = f"explainability/am/results/{paper}_{minimax}_reg_{regularization_method}/best_input_trial_{trial}.pt"
         
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
         
@@ -102,6 +113,6 @@ def run_activation_maximization(
         
         save_with_wandb(save_path, name_of_object=f"{paper}_method_am_{minimax}_trial_{trial}.pt")
 
-        print(f"[{label}] Best output value: {best_val:.4f}")
+        logger.info(f"[{label}] Best output value: {best_val:.4f}")
 
     wandb.finish()
