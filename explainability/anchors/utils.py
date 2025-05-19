@@ -19,9 +19,16 @@ def compute_bins(Y: np.ndarray, low_q: float, high_q: float) -> tuple[np.ndarray
 def explain_sample_set(X_sample, explainer, config, logger, bins_names, save_dir, suffix_progress_bar=""):
     """Run Anchor explanations on a sample set and log results."""
     explanations = []
-
+    coverage_samples = 10000 # default value
+    
+    if config.paper == "transynergy":
+        coverage_samples = 100000 # this still is imbalanced, but we need more samples to get a good coverage
+        
     for i, x in tqdm(enumerate(X_sample), desc=f"Explaining samples {suffix_progress_bar}", total=len(X_sample)):
-        explanation = explainer.explain(x, threshold=config.threshold, batch_size=1000)
+        explanation = explainer.explain(x, 
+                                        threshold=config.threshold, 
+                                        batch_size=1000,
+                                        coverage_samples=coverage_samples)
         explanations.append({
             "instance": i,
             "anchor": explanation.anchor,

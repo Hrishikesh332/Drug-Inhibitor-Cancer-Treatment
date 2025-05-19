@@ -52,7 +52,7 @@ def run_explanation(model, model_name, method, X_train, Y_train, X_test, Y_test,
     if method == 'shap':
         run_shap_explanation(model, model_name, X, Y, logger)
     elif method == 'anchors':
-        for fraction_explained in ["all", "bottom_10_percent", "top_10_percent", "random_100"]:
+        for fraction_explained in ["all", "bottom_10_percent", "top_10_percent", "random"]:
             for threshold in [0.90, 0.95]:
                 logger.info(f"Running anchors with fraction_explained={fraction_explained}, threshold={threshold}")
                 run_anchors(
