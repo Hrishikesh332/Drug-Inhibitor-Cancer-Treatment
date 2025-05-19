@@ -9,7 +9,7 @@ from torch.utils import data
 
 import trans_synergy.settings
 from trans_synergy.data import network_propagation
-from trans_synergy.models.other import drug_drug
+from trans_synergy.data.utils import train_test_split
 
 setting = trans_synergy.settings.get()
 
@@ -1151,24 +1151,22 @@ class DataPreprocessor:
             cls.synergy_score = SynergyDataReader.get_synergy_score()
 
     @classmethod
-    def regular_train_eval_test_split(cls, fold = 'fold', test_fold = 0):
+    def regular_train_eval_test_split(cls, test_fold: int, evaluation_fold: int, fold_col_name = 'fold'):
 
         if cls.synergy_score is None:
             cls.synergy_score = SynergyDataReader.get_synergy_score()
 
-        if setting.index_in_literature:
-            evluation_fold = np.random.choice(list({0,1,2,3,4}-{test_fold}))
-            evluation_fold = 0 # hard-coded by original authors
-            test_index = np.array(cls.synergy_score[cls.synergy_score[fold] == test_fold].index)
-            evaluation_index = np.array(cls.synergy_score[cls.synergy_score[fold] == evluation_fold].index)
-            train_index = np.array(cls.synergy_score[(cls.synergy_score[fold] != test_fold) &
-                                                     (cls.synergy_score[fold] != evluation_fold)].index)
+        # if setting.index_in_literature: # TODO
+        if False:
+            test_index = np.array(cls.synergy_score[cls.synergy_score[fold_col_name] == test_fold].index)
+            evaluation_index = np.array(cls.synergy_score[cls.synergy_score[fold_col_name] == evaluation_fold].index)
+            train_index = np.array(cls.synergy_score[(cls.synergy_score[fold_col_name] != test_fold) &
+                                                     (cls.synergy_score[fold_col_name] != evaluation_fold)].index)
 
         else:
-            train_index, test_index = drug_drug.split_data(cls.synergy_score, group_df=cls.synergy_score, group_col=[fold])
-            train_index, evaluation_index = drug_drug.split_data(cls.synergy_score,
-                                                                 group_df=cls.synergy_score[train_index],
-                                                                 group_col=[fold])
+            train_index, test_index = train_test_split(group_df=cls.synergy_score, group_cols=[fold_col_name])
+            train_index, evaluation_index = train_test_split(group_df=cls.synergy_score[train_index],
+                                                                 group_cols=[fold_col_name])
 
         train_index = np.concatenate([train_index, train_index + cls.synergy_score.shape[0]])
         evaluation_index_2 = evaluation_index + cls.synergy_score.shape[0]
@@ -1180,6 +1178,7 @@ class DataPreprocessor:
 
     @classmethod
     def cv_train_eval_test_split_generator(cls, fold='fold', test_fold=0):
+        """LEGACY! Only used in DeepSynergy"""
         if cls.synergy_score is None:
             cls.synergy_score = SynergyDataReader.get_synergy_score()
 
