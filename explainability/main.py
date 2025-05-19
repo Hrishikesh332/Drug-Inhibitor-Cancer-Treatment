@@ -63,7 +63,7 @@ def run_explanation(model, model_name, method, X_train, Y_train, X_test, Y_test,
                             X_test = X_test,
                             Y_test = Y_test,
                             logger = logger,
-                            threshold=0.95,
+                            threshold=threshold,
                             fraction_explained=fraction_explained,
                             num_explanations=1000,
                         )
