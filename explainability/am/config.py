@@ -13,7 +13,5 @@ class ActivationMaximizationConfig(ExplainationConfig):
     early_stopping: bool = True
     patience: int = 50
     regularization: Optional[Literal["l1", "l2"]] = None
-    cell_drug_feat_len_transynergy : int = 2402
-    cell_drug_feat_len_biomining: int = 33 
     l1_lambda: float = 1e-3 # hyperparams for regularisation
     l2_lambda: float = 1e-3 # hyperparams for regularisation

@@ -16,6 +16,7 @@ def run_anchors(
     model: torch.nn.Module,
     paper: Literal["biomining", "transynergy"],
     X: torch.Tensor,
+    Y: torch.Tensor,
     logger: Logger,
     **kwargs
 ):
@@ -33,6 +34,7 @@ def run_anchors(
 
     X_np = X.cpu().numpy() if isinstance(X, torch.Tensor) else X
     X_sample = X_np[:config.num_explanations] # TODO; fix and get indices of points you are interested in!
+    bins = np.quantile(Y, [0.2, 0.8])
 
     def predict_fn(x: np.ndarray) -> np.ndarray:
         x_tensor = torch.tensor(x, dtype=torch.float32).to(device)
@@ -43,7 +45,7 @@ def run_anchors(
 
         with torch.no_grad():
             out = model(x_tensor)
-        return (out.sigmoid().cpu().numpy() > 0.5).astype(int)
+        return np.digitize(out, bins)
 
     feature_names = [f"feature_{i}" for i in range(X_sample.shape[1])]
     explainer = AnchorTabular(predict_fn, feature_names)
