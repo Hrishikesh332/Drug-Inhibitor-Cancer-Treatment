@@ -91,7 +91,7 @@ def main():
     
     parser.add_argument('--model', 
                         type=str, 
-                        default='biomining',
+                        default='transynergy',
                         choices=MODEL_DATA_REGISTRY.keys(),
                         help='Which model to explain')
     parser.add_argument('--method', 
