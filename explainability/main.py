@@ -11,6 +11,7 @@ from explainability.utils import (
 )
 from explainability.am import run_activation_maximization
 from explainability.shap import run_shap_explanation
+from explainability.anchors import run_anchors
 
 @dataclass
 class ModelAndDataConfig:
@@ -52,7 +53,14 @@ def run_explanation(model, model_name, method, X, Y, logger):
     if method == 'shap':
         run_shap_explanation(model, model_name, X, Y, logger)
     elif method == 'anchors':
-        raise NotImplementedError("Anchors explainability not yet implemented.")
+        run_anchors(
+                    model, 
+                    model_name, 
+                    X,
+                    logger,
+                    num_explanations=5,
+                    thereshold=0.95,
+                )
     elif method == 'activation_max':
         for regularization in [None, "l2", "l1"]:
             for maximize in [True, False]:
