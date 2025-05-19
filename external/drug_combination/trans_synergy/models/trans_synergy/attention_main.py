@@ -23,21 +23,12 @@ import trans_synergy.settings
 from trans_synergy import device2
 from trans_synergy.models.other import drug_drug
 from trans_synergy.models.trans_synergy import attention_model
+from trans_synergy.utils import set_seed
 
 setting = trans_synergy.settings.get()
 
 logger = logging.getLogger(__name__)
 random_seed = 913
-
-
-
-def set_seed(seed=random_seed):
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
-    np.random.seed(seed)
-    random.seed(seed)
 
 def get_final_index():
 
@@ -178,7 +169,7 @@ def setup_tensor_reorganizer(drug_features_length, cellline_features_length):
     return reorder_tensor
 
 def setup_model_and_optimizer(reorder_tensor):
-    set_seed()
+    set_seed(random_seed)
     drug_model, best_drug_model = prepare_model(reorder_tensor)
     optimizer = torch.optim.Adam(
         drug_model.parameters(), lr=setting.start_lr,
