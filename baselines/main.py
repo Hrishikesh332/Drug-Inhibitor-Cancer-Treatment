@@ -1,7 +1,7 @@
 from trans_synergy.models.trans_synergy.attention_main import prepare_splitted_datasets as prepare_splitted_datasets_transynergy
 from trans_synergy.models.trans_synergy.attention_main import setup_data as setup_data_transynergy
 from trans_synergy.data.trans_synergy_data import DataPreprocessor as DataPreprocessorTranSynergy
-from trans_synergy.models.trans_synergy.attention_main import set_seed
+from trans_synergy.utils import set_seed
 from baselines.traditional_ml import train_and_eval_model
 from external.predicting_synergy_nn.src.utils.data_loader import CVDatasetHandler
 from tqdm import tqdm
