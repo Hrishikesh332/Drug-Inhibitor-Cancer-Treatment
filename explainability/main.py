@@ -2,7 +2,8 @@ import argparse
 import logging
 from typing import Callable
 from dataclasses import dataclass
-
+import sys
+import os
 from explainability.utils import (
     load_transynergy_model,
     load_biomining_model,
@@ -10,6 +11,8 @@ from explainability.utils import (
     load_biomining_data,
 )
 from explainability.am import run_activation_maximization
+from explainability.ig.run import run_integrated_gradients
+
 
 
 @dataclass
@@ -66,34 +69,58 @@ def run_explanation(model, model_name, method, X, Y, logger):
                     maximize=maximize,
                 )
     elif method == 'integrated_gradients':
-        raise NotImplementedError("Integrated gradients not yet implemented.")
+        logger.info("Running Integrated Gradients...")
+        print("Running Integrated Gradients...")
+        run_integrated_gradients(model, model_name, X, Y, logger)
     else:
         raise ValueError(f"Unknown explanation method: {method}")
 
 def main():
     parser = argparse.ArgumentParser(description="Run explainability on model outputs")
+    
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.INFO)
-    
-    parser.add_argument('--model', 
-                        type=str, 
-                        default='biomining',
-                        choices=MODEL_DATA_REGISTRY.keys(),
-                        help='Which model to explain')
-    parser.add_argument('--method', 
-                        type=str, 
-                        default='activation_max',
-                        choices=['shap', 'anchors', 'activation_max', 'integrated_gradients'],
-                        help='Which explainability method to use')
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+
+    # Log to console
+    stream_handler = logging.StreamHandler(sys.stdout)
+    stream_handler.setFormatter(formatter)
+    logger.addHandler(stream_handler)
+    if not os.path.exists("logs"):
+        os.makedirs("logs")
+    file_handler = logging.FileHandler("logs/explainability_run.log")
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
+
+    print("Starting explainability run...")
+
+    parser.add_argument(
+        '--model',
+        type=str,
+        default='biomining',
+        choices=MODEL_DATA_REGISTRY.keys(),
+        help='Which model to explain'
+    )
+    parser.add_argument(
+        '--method',
+        type=str,
+        default='activation_max',
+        choices=['shap', 'anchors', 'activation_max', 'integrated_gradients'],
+        help='Which explainability method to use'
+    )
 
     args = parser.parse_args()
 
+    logger.info(f"Loading model: {args.model}")
     model = load_model(args.model)
     model.eval()
 
+    logger.info(f"Loading data for model: {args.model}")
     X, Y = load_data(args.model)
 
     run_explanation(model, args.model, args.method, X, Y, logger)
+
+    logger.info("Explainability run completed successfully.")
 
 
 if __name__ == '__main__': 
