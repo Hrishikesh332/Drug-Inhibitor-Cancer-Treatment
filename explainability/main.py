@@ -41,12 +41,11 @@ def load_model(model_name: str):
     cfg = MODEL_DATA_REGISTRY[model_name]
     return cfg.model_loader(model_path=cfg.model_path)
 
-def load_data(model_name: str):
+def load_data(model_name: str, split: str = 'train'):
     if model_name not in MODEL_DATA_REGISTRY:
         raise ValueError(f"No data loader registered for model: {model_name}")
     cfg = MODEL_DATA_REGISTRY[model_name]
-    return cfg.data_loader()
-
+    return cfg.data_loader(split=split)
 
 def run_explanation(model, model_name, method, X, Y, logger):
     if method == 'shap':
@@ -56,8 +55,8 @@ def run_explanation(model, model_name, method, X, Y, logger):
                     model, 
                     model_name, 
                     X,
+                    Y,
                     logger,
-                    num_explanations=5,
                     threshold=0.95,
                 )
     elif method == 'activation_max':
