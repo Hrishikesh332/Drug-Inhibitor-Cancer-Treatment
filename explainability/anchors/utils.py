@@ -60,9 +60,9 @@ def build_predict_fn(model, device, config, bins):
         x_tensor = torch.tensor(x, dtype=torch.float32).to(device)
 
         if config.paper == "transynergy":
-            x_tensor = x_tensor.view(num_samples, 3, config.cell_drug_feat_len_transynergy)
+            x_tensor = x_tensor.view(num_samples, 3, config.feature_length)
         elif config.paper == "biomining":
-            x_tensor = x_tensor.view(num_samples, config.cell_drug_feat_len_biomining)
+            x_tensor = x_tensor.view(num_samples, config.feature_length)
 
         x_tensor = x_tensor.clone().detach().requires_grad_(True)
 
