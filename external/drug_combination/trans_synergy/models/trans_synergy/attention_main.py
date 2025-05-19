@@ -23,7 +23,11 @@ import trans_synergy.settings
 from trans_synergy import device2
 from trans_synergy.models.other import drug_drug
 from trans_synergy.models.trans_synergy import attention_model
+<<<<<<< HEAD
 from trans_synergy.utils import set_seed
+=======
+from trans_synergy.data.utils import TensorReorganizer
+>>>>>>> 3b4fcd2 (Intermediate commit)
 
 setting = trans_synergy.settings.get()
 
@@ -164,7 +168,7 @@ def setup_data():
 
 def setup_tensor_reorganizer(drug_features_length, cellline_features_length):
     slice_indices = drug_features_length + drug_features_length + cellline_features_length
-    reorder_tensor = drug_drug.TensorReorganizer(slice_indices, setting.arrangement, 2)
+    reorder_tensor = TensorReorganizer(slice_indices, setting.arrangement, 2)
     logger.debug("Feature layout: {!r}".format(reorder_tensor.get_reordered_slice_indices()))
     return reorder_tensor
 
@@ -469,7 +473,7 @@ def run(use_wandb: bool = True):
     
     split_func = trans_synergy.data.trans_synergy_data.DataPreprocessor.regular_train_eval_test_split
 
-    for fold_idx, partition in enumerate(tqdm(split_func(fold='fold', test_fold=4), desc="Folds", total=1)):
+    for fold_idx, partition in enumerate(tqdm(split_func(fold_col_name='fold', test_fold=4, evaluation_fold=0), desc="Folds", total=1)):
         training_generator, validation_generator, test_generator, all_data_generator, all_data_generator_total = train_model_on_fold(fold_idx, partition, X, Y, std_scaler, reorder_tensor,
                             drug_model, best_drug_model, optimizer, scheduler, use_wandb, slice_indices)
 

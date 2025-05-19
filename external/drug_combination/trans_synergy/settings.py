@@ -88,9 +88,6 @@ class Settings:
     network_matrix = os.path.join(_DATA_DIR, 'network', 'string_network_matrix.csv')
     split_random_seed = 3
     index_in_literature = True
-    index_renewal = True
-    train_index = os.path.join(_DATA_DIR, 'train_index_' + str(split_random_seed))
-    test_index = os.path.join(_DATA_DIR, 'test_index_' + str(split_random_seed))
 
     renew = False
     gene_expression_simulated_result_matrix = os.path.join(_DATA_DIR, 'chemicals', 'gene_expression_simulated_result_matrix_string.csv')
