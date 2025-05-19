@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from explaination_config.explaination_config import ExplainationConfig
+from explainability.explaination_config import ExplainationConfig
 
 
 @dataclass
