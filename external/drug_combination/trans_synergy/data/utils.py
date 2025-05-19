@@ -119,7 +119,7 @@ def train_test_split(group_df: pd.DataFrame, group_cols: list[str], n_split: int
     logging.debug("groupkfold split based on %s" % str(group_cols))
     groupkfold = GroupKFold(n_splits=n_split)
 
-    groups = group_df.apply(lambda x: "_".join(list(x[group_cols])), axis = 1)
+    groups = group_df.apply(lambda x: "_".join(list(x[group_cols].astype(str))), axis = 1)
     groupkfold_instance = groupkfold.split(group_df, groups=groups)
     for _ in range(rd_state%n_split):
         next(groupkfold_instance)
