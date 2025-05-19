@@ -16,8 +16,8 @@ class ExplainationConfig:
             self.feature_length = 33
         elif self.paper == "transynergy":
             gene_df = pd.read_csv("external\drug_combination\data\genes\genes_2401_df.csv")
-            feature_names_drugs = gene_df.columns.tolist() + ["pIC50"]
-            feature_names_cell_lines = gene_df.columns.tolist() + ["padding_feature"]
+            feature_names_drugs = gene_df['symbol'].tolist() + ["pIC50"]
+            feature_names_cell_lines = gene_df['symbol'].tolist() + ["padding_feature"]
             
             self.feature_names = feature_names_drugs + feature_names_drugs + feature_names_cell_lines
             self.feature_length = 2402 
