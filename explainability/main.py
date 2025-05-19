@@ -12,6 +12,7 @@ from explainability.utils import (
 from explainability.am import run_activation_maximization
 from explainability.shap import run_shap_explanation
 from explainability.anchors import run_anchors
+from explainability.shap import run_shap_explanation
 
 @dataclass
 class ModelAndDataConfig:
