@@ -8,7 +8,6 @@ from sklearn.preprocessing import StandardScaler
 from torch import save
 from torch.utils import data
 from trans_synergy.data import network_propagation
-from trans_synergy.data.utils import train_test_split
 
 setting = trans_synergy.settings.get()
 
