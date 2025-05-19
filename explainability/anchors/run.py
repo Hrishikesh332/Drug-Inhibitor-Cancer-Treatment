@@ -20,12 +20,11 @@ def run_anchors(
     **kwargs
 ):
     
-    input_shape = X[0].shape
     config = AnchorConfig(paper=paper, **kwargs)
     
     wandb.init(project=f"EXPLAINABILITY on {config.paper} anchors", 
                config=asdict(config),
-               name=f"{paper}_num_exp_{config.num_explainations}_anchors_reg_{config.thereshold}",)
+               name=f"{paper}_num_exp_{config.num_explanations}_anchors_{config.threshold}",)
 
 
     device = next(model.parameters()).device
@@ -38,9 +37,9 @@ def run_anchors(
     def predict_fn(x: np.ndarray) -> np.ndarray:
         x_tensor = torch.tensor(x, dtype=torch.float32).to(device)
         if config.paper == "transynergy":
-            input_tensor = input_tensor.view(1, 3, config.cell_drug_feat_len_transynergy).clone().detach().requires_grad_(True)
+            x_tensor = x_tensor.view(1, 3, config.cell_drug_feat_len_transynergy).clone().detach().requires_grad_(True)
         elif config.paper == "biomining":
-            input_tensor = input_tensor.view(1,  config.cell_drug_feat_len_biomining).clone().detach().requires_grad_(True)
+            x_tensor = x_tensor.view(1, config.cell_drug_feat_len_biomining).clone().detach().requires_grad_(True)
 
         with torch.no_grad():
             out = model(x_tensor)

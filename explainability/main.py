@@ -58,7 +58,7 @@ def run_explanation(model, model_name, method, X, Y, logger):
                     X,
                     logger,
                     num_explanations=5,
-                    thereshold=0.95,
+                    threshold=0.95,
                 )
     elif method == 'activation_max':
         for regularization in [None, "l2", "l1"]:
@@ -89,7 +89,7 @@ def main():
                         help='Which model to explain')
     parser.add_argument('--method', 
                         type=str, 
-                        default='activation_max',
+                        default='anchors',
                         choices=['shap', 'anchors', 'activation_max', 'integrated_gradients'],
                         help='Which explainability method to use')
 
