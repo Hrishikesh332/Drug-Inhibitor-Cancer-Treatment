@@ -53,10 +53,10 @@ def run_anchors(
     explainer.fit(X_train_np)
 
     explain_sample_set(X_train_np, explainer, config, logger, bins_names, 
-                       save_dir=f"explainability/anchors/results_train/sample_{config.fraction_explained}", 
+                       save_dir=f"explainability/anchors/results_train/sample_{config.fraction_explained}_thres_{config.threshold}", 
                        suffix_progress_bar="train")
     explain_sample_set(X_test_np, explainer, config, logger, bins_names, 
-                       save_dir=f"explainability/anchors/results_test/sample_{config.fraction_explained}", 
+                       save_dir=f"explainability/anchors/results_test/sample_{config.fraction_explained}_thres_{config.threshold}", 
                        suffix_progress_bar="test")
 
     wandb.finish()
