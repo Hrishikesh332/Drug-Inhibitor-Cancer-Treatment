@@ -10,7 +10,7 @@ from explainability.utils import (
     load_biomining_data,
 )
 from explainability.am import run_activation_maximization
-
+from explainability.shap import run_shap_explanation
 
 @dataclass
 class ModelAndDataConfig:
@@ -50,7 +50,7 @@ def load_data(model_name: str):
 
 def run_explanation(model, model_name, method, X, Y, logger):
     if method == 'shap':
-        raise NotImplementedError("SHAP explainability not yet implemented.")
+        run_shap_explanation(model, model_name, X, Y, logger)
     elif method == 'anchors':
         raise NotImplementedError("Anchors explainability not yet implemented.")
     elif method == 'activation_max':

@@ -19,7 +19,7 @@ def load_transynergy_model(model_path: str, map_location: str = 'cpu'):
     Returns:
         torch.nn.Module: Loaded  model.
     """
-    model = torch.load(model_path, map_location=map_location)
+    model = torch.load(model_path, map_location=map_location, weights_only=False)
     model.eval()
     return model
     
