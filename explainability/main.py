@@ -47,29 +47,36 @@ def load_data(model_name: str, split: str = 'train'):
     cfg = MODEL_DATA_REGISTRY[model_name]
     return cfg.data_loader(split=split)
 
-def run_explanation(model, model_name, method, X, Y, logger):
+def run_explanation(model, model_name, method, X_train, Y_train, X_test, Y_test, logger):
     if method == 'shap':
         raise NotImplementedError("SHAP explainability not yet implemented.")
     elif method == 'anchors':
-        run_anchors(
-                    model, 
-                    model_name, 
-                    X,
-                    Y,
-                    logger,
-                    threshold=0.95,
-                )
+        for fraction_explained in ["all", "bottom_10_percent", "top_10_percent", "random_100"]:
+            for threshold in [0.90, 0.95]:
+                logger.info(f"Running anchors with fraction_explained={fraction_explained}, threshold={threshold}")
+                run_anchors(
+                            model = model, 
+                            paper = model_name, 
+                            X_train = X_train,
+                            Y_train = Y_train,
+                            X_test = X_test,
+                            Y_test = Y_test,
+                            logger = logger,
+                            threshold=0.95,
+                            fraction_explained=fraction_explained,
+                            num_explanations=1000,
+                        )
     elif method == 'activation_max':
         for regularization in [None, "l2", "l1"]:
             for maximize in [True, False]:
                 logger.info(f"Running activation maximization with regularization={regularization}, maximize={maximize}")
                 run_activation_maximization(
-                    model, 
-                    model_name, 
-                    X,
-                    logger,
-                    regularization=regularization,
-                    maximize=maximize,
+                    model = model, 
+                    paper = model_name, 
+                    X = X_train,
+                    logger = logger,
+                    regularization = regularization,
+                    maximize = maximize,
                 )
     elif method == 'integrated_gradients':
         raise NotImplementedError("Integrated gradients not yet implemented.")
@@ -97,9 +104,17 @@ def main():
     model = load_model(args.model)
     model.eval()
 
-    X, Y = load_data(args.model)
+    X_train, Y_train = load_data(args.model)
+    X_test, Y_test = load_data(args.model, split='test')
 
-    run_explanation(model, args.model, args.method, X, Y, logger)
+    run_explanation(model = model, 
+                    model_name = args.model, 
+                    method = args.method, 
+                    X_train= X_train,
+                    Y_train= Y_train,
+                    X_test= X_test,
+                    Y_test= Y_test,
+                    logger=logger)
 
 
 if __name__ == '__main__': 
