@@ -2,7 +2,6 @@ import logging
 import pickle
 import random
 import shutil
-import wandb
 from os import environ, makedirs, path, sep
 
 import numpy as np
@@ -10,6 +9,8 @@ import pandas as pd
 import shap
 import torch
 import torch.nn.functional as F
+import trans_synergy.data.trans_synergy_data
+import trans_synergy.settings
 from scipy.stats import pearsonr, spearmanr
 from sklearn.cluster import MiniBatchKMeans
 from sklearn.metrics import mean_squared_error
@@ -17,17 +18,20 @@ from sklearn.preprocessing import StandardScaler
 from torch import load, save
 from torch.utils import data
 from tqdm import tqdm
-
-import trans_synergy.data.trans_synergy_data
-import trans_synergy.settings
 from trans_synergy import device2
+from trans_synergy.data.utils import TensorReorganizer
 from trans_synergy.models.other import drug_drug
 from trans_synergy.models.trans_synergy import attention_model
+<<<<<<< HEAD
 <<<<<<< HEAD
 from trans_synergy.utils import set_seed
 =======
 from trans_synergy.data.utils import TensorReorganizer
 >>>>>>> 3b4fcd2 (Intermediate commit)
+=======
+
+import wandb
+>>>>>>> 100f13e (Finalize fixes)
 
 setting = trans_synergy.settings.get()
 
@@ -472,14 +476,14 @@ def run(use_wandb: bool = True):
     slice_indices = drug_features_length + drug_features_length + cellline_features_length
     
     split_func = trans_synergy.data.trans_synergy_data.DataPreprocessor.regular_train_eval_test_split
+    fold_idx = 0
+    partition = split_func(fold_col_name='fold', test_fold=4, evaluation_fold=0)
+    training_generator, validation_generator, test_generator, all_data_generator, all_data_generator_total = train_model_on_fold(fold_idx, partition, X, Y, std_scaler, reorder_tensor,
+                        drug_model, best_drug_model, optimizer, scheduler, use_wandb, slice_indices)
 
-    for fold_idx, partition in enumerate(tqdm(split_func(fold_col_name='fold', test_fold=4, evaluation_fold=0), desc="Folds", total=1)):
-        training_generator, validation_generator, test_generator, all_data_generator, all_data_generator_total = train_model_on_fold(fold_idx, partition, X, Y, std_scaler, reorder_tensor,
-                            drug_model, best_drug_model, optimizer, scheduler, use_wandb, slice_indices)
-
-        test_best_model(best_drug_model, test_generator, reorder_tensor, std_scaler, slice_indices, use_wandb)
-        if setting.perform_importance_study:
-            run_importance_study( setting, all_data_generator_total, all_data_generator, partition, reorder_tensor, slice_indices,
-                device2, best_drug_model, logger)
+    test_best_model(best_drug_model, test_generator, reorder_tensor, std_scaler, slice_indices, use_wandb)
+    if setting.perform_importance_study:
+        run_importance_study( setting, all_data_generator_total, all_data_generator, partition, reorder_tensor, slice_indices,
+            device2, best_drug_model, logger)
         
         

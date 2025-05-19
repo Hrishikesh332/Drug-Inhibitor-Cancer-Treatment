@@ -1,12 +1,9 @@
 import logging
-import os
-import pickle
 
 import pandas as pd
 import torch
 from sklearn.model_selection import GroupKFold
-import numpy as np
-from trans_synergy.models.other.drug_drug import setting, logger
+from trans_synergy.models.other.drug_drug import setting
 
 
 class TensorReorganizer:
@@ -116,6 +113,7 @@ class TensorReorganizer:
 
 
 def train_test_split(group_df: pd.DataFrame, group_cols: list[str], n_split: int = 5, rd_state: int = setting.split_random_seed):
+    """LEGACY"""
     logging.debug("groupkfold split based on %s" % str(group_cols))
     groupkfold = GroupKFold(n_splits=n_split)
 
