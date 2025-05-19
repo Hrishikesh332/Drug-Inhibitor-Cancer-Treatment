@@ -14,5 +14,5 @@ This submodule provides explainability tools for drug synergy prediction models 
 You can run an explainability experiment using:
 
 ```bash
-python explainability/main.py --model biomining --method activation_max
+python -m explainability.main --model biomining --method activation_max
 ```
