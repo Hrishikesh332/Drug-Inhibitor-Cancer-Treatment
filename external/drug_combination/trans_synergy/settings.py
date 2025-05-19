@@ -3,10 +3,13 @@ import os
 from dataclasses import dataclass
 from time import time
 from typing import Optional
+from pathlib import Path
 
-_DATA_DIR = "external/drug_combination/data"
-_SRC_DIR = "external/drug_combination/trans_synergy"
-_RUNS_DIR = "external/drug_combination/runs" 
+TRANS_SYNERGY_ROOT = Path("external/drug_combination")
+
+_DATA_DIR = TRANS_SYNERGY_ROOT / "data"
+_SRC_DIR = TRANS_SYNERGY_ROOT / "trans_synergy"
+_RUNS_DIR = TRANS_SYNERGY_ROOT / "runs"
 
 logger = logging.getLogger(__name__)
 @dataclass
@@ -38,16 +41,13 @@ class Settings:
     batch_size = 128
     loss = 'mse'
 
-    NBS_logfile = 'NBS_logfile'
+    NBS_logfile = TRANS_SYNERGY_ROOT / 'NBS_logfile'
+    logfile =  TRANS_SYNERGY_ROOT / 'logfile'
+
     data_specific = '_2401_0.5_norm_drug_target_36_norm_gd_singlet_whole_network_no_mean_cl50_all_more_cl'
-    data_folder = 'datas' + data_specific
-    if not os.path.exists(data_folder):
-        os.makedirs(data_folder)
-        open(os.path.join(_RUNS_DIR, data_folder, "__init__.py"), 'w+').close()
 
     uniq_part = "_run_{!r}".format(int(time()))
     run_dir = os.path.join(_RUNS_DIR, uniq_part)
-    logfile = 'logfile'
 
     update_final_index = True
     final_index = os.path.join(_DATA_DIR, "synergy_score/final_index.csv")

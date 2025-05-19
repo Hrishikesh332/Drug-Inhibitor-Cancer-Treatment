@@ -1,17 +1,20 @@
+import argparse
+
+from tqdm import tqdm
 from trans_synergy.models.trans_synergy.attention_main import prepare_splitted_datasets as prepare_splitted_datasets_transynergy
 from trans_synergy.models.trans_synergy.attention_main import setup_data as setup_data_transynergy
 from trans_synergy.data.trans_synergy_data import DataPreprocessor as DataPreprocessorTranSynergy
 from trans_synergy.utils import set_seed
 from baselines.traditional_ml import train_and_eval_model
-from external.predicting_synergy_nn.src.utils.data_loader import CVDatasetHandler
-from tqdm import tqdm
-import argparse
+from external.predicting_synergy_nn.src.utils.data_loader import \
+    CVDatasetHandler
 
-
-BASELINE_MODELS = ['random_forest', 'svm', 'decision_tree', 'ridge', 'knn']
-def run_transynergy(timeout = 120, n_iter = 15):
-    
-    baseline_models = BASELINE_MODELS
+BASELINE_MODELS = ['catboost', 'random_forest', 'svm', 'decision_tree', 'ridge', 'knn']
+def run_transynergy(timeout = 120, n_iter = 15, models: list[str] | None = None):
+    if models is None:
+        baseline_models = BASELINE_MODELS
+    else:
+        baseline_models = models
 
     _, X, Y, _, _ = setup_data_transynergy()
 
@@ -47,9 +50,12 @@ def run_transynergy(timeout = 120, n_iter = 15):
             )   
 
 
-def run_biomining(fold: int = 1, n_iter = 15, timeout = 120):
+def run_biomining(fold: int = 1, n_iter = 15, timeout = 120, models: list[str] | None = None):
     handler = CVDatasetHandler(data_dir='external/predicting_synergy_nn/data', outer_fold=fold)
-    baseline_models = BASELINE_MODELS
+    if models is None:
+        baseline_models = BASELINE_MODELS
+    else:
+        baseline_models = models
 
     for baseline_model in tqdm(baseline_models):
         X_trains = []
@@ -111,12 +117,25 @@ if __name__ == "__main__":
         default=1,
         help="Fold number for biomining (only applicable for biomining mode)."
     )
+    parser.add_argument(
+        "--model",
+        type=str,
+        default=None,
+        required=False,
+        choices=BASELINE_MODELS,
+        help=f"Name of model to train and evaluate. If omitted, will run every model."
+    )
 
     args = parser.parse_args()
 
     set_seed(142)
 
+    if args.model is not None:
+        models = [args.model]
+    else:
+        models = None
+
     if args.mode == "transynergy":
-        run_transynergy(timeout=args.timeout, n_iter=args.n_iter)
+        run_transynergy(timeout=args.timeout, n_iter=args.n_iter, models=models)
     elif args.mode == "biomining":
-        run_biomining(fold=args.fold, timeout=args.timeout, n_iter=args.n_iter)
+        run_biomining(fold=args.fold, timeout=args.timeout, n_iter=args.n_iter, models=models)

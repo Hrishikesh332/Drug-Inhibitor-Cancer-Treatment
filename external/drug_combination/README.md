@@ -67,7 +67,7 @@ zenodo_get 10.5281/zenodo.4789936 -o ./data/synergy_score
 
 
 ## Run training
-You can choose between the following cell line features (gene dependencies, gene expression and netexpress scores.
+You can choose between the following cell line features (gene dependencies, gene expression and netexpress scores. Run one of the commands below from the repo root.
 ```bash
 python main.py --settings_choice='gene_dependency'
 ```
