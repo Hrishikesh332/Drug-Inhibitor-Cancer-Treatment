@@ -1,13 +1,15 @@
 import os
-import wandb
-import torch
+from logging import Logger
+from dataclasses import asdict
+from typing import Literal
+
 import numpy as np
+import torch
+import wandb
 from alibi.explainers import AnchorTabular
+
 from explainability.utils import save_with_wandb
 from trans_synergy.utils import set_seed
-from logging import Logger
-from dataclasses import dataclass, asdict
-from typing import Literal, Optional
 from explainability.anchors.config import AnchorConfig
     
 def run_anchors(

@@ -1,12 +1,14 @@
 import os
+from dataclasses import asdict
+from typing import Literal
+from logging import Logger
+
 import torch
 import wandb
 from tqdm import trange
-from dataclasses import dataclass, asdict
-from typing import Literal, Optional
-from explainability.utils import save_with_wandb
+
 from trans_synergy.utils import set_seed
-from logging import Logger
+from explainability.utils import save_with_wandb
 from explainability.am.config import ActivationMaximizationConfig
 
 def run_activation_maximization(

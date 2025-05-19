@@ -1,12 +1,15 @@
-import torch
-import wandb
 import shutil
 from pathlib import Path
 from typing import Literal
+
+import torch
+import wandb
+
 import trans_synergy
 from trans_synergy.models.trans_synergy.attention_main import setup_data as setup_data_transynergy
 from external.predicting_synergy_nn.src.utils.data_loader import CVDatasetHandler
 from external.predicting_synergy_nn.src.models.architectures import SynergyModel
+
 
 def load_transynergy_model(model_path: str, map_location: str = 'cpu'):
     """
