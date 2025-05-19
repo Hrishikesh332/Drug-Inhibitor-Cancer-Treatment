@@ -40,9 +40,9 @@ def run_activation_maximization(
         input_tensor = torch.randn(input_shape, requires_grad=True, device=device)
         
         if config.paper == "transynergy":
-            input_tensor = input_tensor.view(1, 3, config.cell_drug_feat_len_transynergy).clone().detach().requires_grad_(True)
+            input_tensor = input_tensor.view(1, 3, config.feature_length).clone().detach().requires_grad_(True)
         elif config.paper == "biomining":
-            input_tensor = input_tensor.view(1, config.cell_drug_feat_len_biomining).clone().detach().requires_grad_(True)
+            input_tensor = input_tensor.view(1, config.feature_length).clone().detach().requires_grad_(True)
 
         optimizer = torch.optim.Adam([input_tensor], lr=config.lr)
 
