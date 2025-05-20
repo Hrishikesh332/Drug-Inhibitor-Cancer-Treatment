@@ -8,6 +8,7 @@ This submodule provides explainability tools for drug synergy prediction models 
 ## Supported Methods
 
 - **Activation Maximization**
+- **Anchors (only for Biomining, too expensive for Transynergy)**
 
 ## Running an Explanation
 
