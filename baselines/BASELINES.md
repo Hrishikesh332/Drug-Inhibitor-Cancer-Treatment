@@ -33,5 +33,13 @@ If you want to only train one type of model, add the `--model` flag. Example:
 | biomining   | random_forest |      17.8277 |                   0.609501 |                    0.58001  | {'n_estimators': 100, 'min_samples_split': 2, 'min_samples_leaf': 2, 'max_features': 'log2', 'max_depth': None} |
 | biomining | catboost     |      16.1133 |                    0.65723 |                    0.640797 | {'learning_rate': 0.06, 'l2_leaf_reg': 4, 'depth': 9, 'boosting_type': 'Plain'} |
 
-
-**To generate this table download Test Result tables from wandb, then process them https://colab.research.google.com/drive/1Wp1n3jo7sc9z7NIMgzSGsguRLHwk23Go?usp=sharing .**
+## Generate Markdown results table
+To generate this table download Test Result tables from wandb, copy the resulting csv path, and run the following script:
+```
+python baselines/wandb_markdown_table.py --wandb_csv_path=<your path> --paper=<paper_name>
+```
+The script will print the markdown to console, which can be used to update the BASLINES.md file. 
+Example:
+```
+python baselines/wandb_markdown_table.py --wandb_csv_path="./baselines/test_results.csv" --paper=transynergy
+```
