@@ -1,19 +1,17 @@
 import argparse
 
 from tqdm import tqdm
-from trans_synergy.data.trans_synergy_data import (
-    DataPreprocessor as DataPreprocessorTranSynergy,
-)
-from trans_synergy.models.trans_synergy.attention_main import (
-    prepare_splitted_datasets as prepare_splitted_datasets_transynergy,
-)
-from trans_synergy.models.trans_synergy.attention_main import (
-    setup_data as setup_data_transynergy,
-)
+from trans_synergy.data.trans_synergy_data import \
+    DataPreprocessor as DataPreprocessorTranSynergy
+from trans_synergy.models.trans_synergy.attention_main import \
+    prepare_splitted_datasets as prepare_splitted_datasets_transynergy
+from trans_synergy.models.trans_synergy.attention_main import \
+    setup_data as setup_data_transynergy
 from trans_synergy.utils import set_seed
 
 from baselines.traditional_ml import train_and_eval_model
-from external.predicting_synergy_nn.src.utils.data_loader import CVDatasetHandler
+from external.predicting_synergy_nn.src.utils.data_loader import \
+    CVDatasetHandler
 
 BASELINE_MODELS = ["catboost", "random_forest", "svm", "decision_tree", "ridge", "knn"]
 
@@ -29,39 +27,38 @@ def run_transynergy(timeout=120, n_iter=15, models: list[str] | None = None):
     split_func = (
         DataPreprocessorTranSynergy.regular_train_eval_test_split
     )  # only this needs to be changed to do full crossval
-    for fold_idx, partition in enumerate(
-        tqdm(split_func(fold="fold", test_fold=4), desc="Folds", total=1)
-    ):
-        partition_indices = {
-            "train": partition[0],
-            "test1": partition[1],
-            "test2": partition[2],
-            "eval1": partition[3],
-            "eval2": partition[4],
-        }
+    fold_idx = 0
+    partition = split_func(fold_col_name="fold", test_fold=4, evaluation_fold=0)
+    partition_indices = {
+        "train": partition[0],
+        "test1": partition[1],
+        "test2": partition[2],
+        "eval1": partition[3],
+        "eval2": partition[4],
+    }
 
-        # dataloaders, but we just extract csvs
-        training_set, _, validation_set, test_set, _ = (
-            prepare_splitted_datasets_transynergy(partition_indices, Y.reshape(-1), X)
+    # dataloaders, but we just extract csvs
+    training_set, _, validation_set, test_set, _ = (
+        prepare_splitted_datasets_transynergy(partition_indices, Y.reshape(-1), X)
+    )
+    X_train, y_train = training_set.data_cache, training_set.data_cache_y
+    X_val, y_val = validation_set.data_cache, validation_set.data_cache_y
+    X_test, y_test = test_set.data_cache, test_set.data_cache_y
+
+    for baseline_model in baseline_models:
+        train_and_eval_model(
+            [X_train],
+            [y_train],
+            X_vals=[X_val],
+            y_vals=[y_val],
+            X_test=X_test,
+            y_test=y_test,
+            fold_idx=fold_idx,
+            model_name=baseline_model,
+            paper="transynergy",
+            timeout=timeout,
+            n_iter=n_iter,
         )
-        X_train, y_train = training_set.data_cache, training_set.data_cache_y
-        X_val, y_val = validation_set.data_cache, validation_set.data_cache_y
-        X_test, y_test = test_set.data_cache, test_set.data_cache_y
-
-        for baseline_model in baseline_models:
-            train_and_eval_model(
-                [X_train],
-                [y_train],
-                X_vals=[X_val],
-                y_vals=[y_val],
-                X_test=X_test,
-                y_test=y_test,
-                fold_idx=fold_idx,
-                model_name=baseline_model,
-                paper="transynergy",
-                timeout=timeout,
-                n_iter=n_iter,
-            )
 
 
 def run_biomining(
