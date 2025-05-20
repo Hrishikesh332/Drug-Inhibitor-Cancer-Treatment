@@ -4,9 +4,11 @@ from dataclasses import dataclass, asdict
 from typing import Literal, Optional
 from logging import Logger
 from explainability.utils import save_with_wandb
-import os
 import numpy as np
 from tqdm import tqdm
+import math
+import os
+import matplotlib.pyplot as plt
 
 @dataclass
 class IntegratedGradientsConfig:
@@ -28,7 +30,7 @@ def compute_integrated_gradients(
     
     logger.info(f"Computing Integrated Gradients for input shape {input_tensor.shape}")
     
-    
+    # Generate scaled inputs along the path from baseline to input
     alphas = torch.linspace(0, 1, n_steps, device=device).view(-1, 1, 1)
     if input_tensor.dim() == 2:  # biomining case
         alphas = alphas.view(-1, 1)
@@ -66,7 +68,7 @@ def run_integrated_gradients(
     logger: Logger,
     **kwargs
 ):
-    
+   
     logger.info(f"Starting Integrated Gradients for {paper} model")
     
     # Convert inputs to tensors if they are NumPy arrays
@@ -112,7 +114,14 @@ def run_integrated_gradients(
     all_attributions = []
     num_samples = X.shape[0]
     
-    logger.info(f"Processing {num_samples} samples in batches of {config.batch_size}")
+    total_batches = math.ceil(num_samples / config.batch_size)
+    logger.info(f"Processing {num_samples} samples in {total_batches} batches of {config.batch_size}")
+    
+    # Directory for per-batch files
+    batch_save_dir = f"explainability/ig/results/{paper}_batch_attributions"
+    os.makedirs(batch_save_dir, exist_ok=True)
+    hist_save_dir = f"explainability/ig/results/{paper}_histograms"
+    os.makedirs(hist_save_dir, exist_ok=True)
     
     for i in tqdm(range(0, num_samples, config.batch_size), desc="Processing batches"):
         batch_X = X[i:i + config.batch_size].to(device)
@@ -140,27 +149,77 @@ def run_integrated_gradients(
             batch_attributions.append(attributions.detach().cpu())
         
         batch_attributions = torch.stack(batch_attributions)
-        logger.info(f"Batch {i//config.batch_size + 1} attributions shape: {batch_attributions.shape}, mean: {batch_attributions.mean().item():.4f}")
+        logger.info(f"Batch {i//config.batch_size + 1} attributions shape: {batch_attributions.shape}, "
+                    f"mean: {batch_attributions.mean().item():.4f}, "
+                    f"abs mean: {batch_attributions.abs().mean().item():.4f}, "
+                    f"std: {batch_attributions.std().item():.4f}, "
+                    f"min: {batch_attributions.min().item():.4f}, "
+                    f"max: {batch_attributions.max().item():.4f}")
+        
+        # Save per-batch file
+        batch_save_path = os.path.join(batch_save_dir, f"batch_{i//config.batch_size + 1}.pt")
+        torch.save(batch_attributions, batch_save_path)
+        logger.info(f"Saved batch {i//config.batch_size + 1} attributions to {batch_save_path}")
         
         all_attributions.append(batch_attributions)
         
-        # Log batch statistics
+        # Log batch statistics with error handling for histogram
         batch_mean_attr = batch_attributions.abs().mean().item()
-        wandb.log({
+        batch_num = i // config.batch_size + 1
+        log_dict = {
             "batch_mean_attribution": batch_mean_attr,
-            "sample_index": i
-        })
+            "sample_index": i,
+        }
+        try:
+            log_dict[f"batch_attributions_histogram_{batch_num}"] = wandb.Histogram(batch_attributions.numpy())
+            logger.debug(f"Logged batch_attributions_histogram_{batch_num} to wandb")
+        except Exception as e:
+            logger.warning(f"Failed to log batch_attributions_histogram_{batch_num}: {str(e)}")
+        
+        # Plot and save per-batch histogram
+        sample_size = min(500000, batch_attributions.numel())  # Limit to 500k elements for memory
+        subset = batch_attributions.numpy().flatten()[:sample_size]
+        plt.figure(figsize=(10, 6))
+        plt.hist(subset, bins=50)
+        plt.title(f"Attribution Distribution for Batch {batch_num}")
+        plt.xlabel("Attribution Score")
+        plt.ylabel("Frequency")
+        hist_path = os.path.join(hist_save_dir, f"batch_{batch_num}_hist.png")
+        plt.savefig(hist_path)
+        plt.close()  # Free memory
+        logger.info(f"Saved histogram for batch {batch_num} to {hist_path}")
+        
+        wandb.log(log_dict)
     
     # Concatenate all attributions
     all_attributions = torch.cat(all_attributions, dim=0)
-    logger.info(f"All attributions concatenated, final shape: {all_attributions.shape}, mean: {all_attributions.mean().item():.4f}, abs mean: {all_attributions.abs().mean().item():.4f}")
+    logger.info(f"All attributions concatenated, final shape: {all_attributions.shape}, "
+                f"mean: {all_attributions.mean().item():.4f}, "
+                f"abs mean: {all_attributions.abs().mean().item():.4f}, "
+                f"std: {all_attributions.std().item():.4f}, "
+                f"min: {all_attributions.min().item():.4f}, "
+                f"max: {all_attributions.max().item():.4f}")
     
+    # Plot and save overll attribution distribution
+    sample_size = min(1000000, all_attributions.numel())  # Limit to 1M elements for memory
+    subset = all_attributions.numpy().flatten()[:sample_size]
+    plt.figure(figsize=(10, 6))
+    plt.hist(subset, bins=50)
+    plt.title("Overall Attribution Distribution")
+    plt.xlabel("Attribution Score")
+    plt.ylabel("Frequency")
+    hist_path = os.path.join(hist_save_dir, "overall_attribution_distribution.png")
+    plt.savefig(hist_path)
+    plt.close()  
+    logger.info(f"Saved overall histogram to {hist_path}")
+    
+    # Save the full tensor
     save_path = f"explainability/ig/results/{paper}_integrated_gradients.pt"
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
-    logger.info(f"Saving attributions to {save_path}")
+    logger.info(f"Saving full attributions to {save_path}")
     torch.save(all_attributions, save_path)
     
-    
+    # Log to wandb with error handling for final histogram
     log_dict = {}
     try:
         log_dict["attributions_histogram"] = wandb.Histogram(all_attributions.numpy())
@@ -170,18 +229,18 @@ def run_integrated_gradients(
     
     try:
         log_dict["mean_attribution"] = all_attributions.abs().mean().item()
-        logger.debug("Logged mean_attribution to wandb")
+        log_dict["std_attribution"] = all_attributions.std().item()
+        log_dict["min_attribution"] = all_attributions.min().item()
+        log_dict["max_attribution"] = all_attributions.max().item()
+        logger.debug("Logged attribution statistics to wandb")
     except Exception as e:
-        logger.error(f"Failed to log mean_attribution: {str(e)}")
+        logger.error(f"Failed to log attribution statistics: {str(e)}")
     
     if log_dict:
         wandb.log(log_dict)
-
+    
+    # Log the saved file to wandb
     save_with_wandb(save_path, name_of_object=f"{paper}_integrated_gradients.pt")
-    wandb.log({
-        "attributions_histogram": wandb.Histogram(all_attributions.numpy()),
-        "mean_attribution": all_attributions.abs().mean().item()
-    })
     
     logger.info(f"Integrated Gradients completed successfully. Results saved to {save_path}")
     wandb.finish()
