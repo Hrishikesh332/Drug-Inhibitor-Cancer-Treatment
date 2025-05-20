@@ -3,13 +3,11 @@ from os import mkdir, path
 
 import numpy as np
 import pandas as pd
+import trans_synergy.settings
 from sklearn.preprocessing import StandardScaler
 from torch import save
 from torch.utils import data
-
-import trans_synergy.settings
 from trans_synergy.data import network_propagation
-from trans_synergy.models.other import drug_drug
 
 setting = trans_synergy.settings.get()
 
@@ -1151,40 +1149,34 @@ class DataPreprocessor:
             cls.synergy_score = SynergyDataReader.get_synergy_score()
 
     @classmethod
-    def regular_train_eval_test_split(cls, fold = 'fold', test_fold = 0):
-
+    def regular_train_eval_test_split(cls, test_fold: int, evaluation_fold: int, fold_col_name = 'fold') -> tuple[np.array, np.array, np.array, np.array, np.array]:
+        # lazy load
         if cls.synergy_score is None:
             cls.synergy_score = SynergyDataReader.get_synergy_score()
+        # collect
+        test_index = np.array(cls.synergy_score[cls.synergy_score[fold_col_name] == test_fold].index)
+        evaluation_index = np.array(cls.synergy_score[cls.synergy_score[fold_col_name] == evaluation_fold].index)
+        train_index = np.array(cls.synergy_score[(cls.synergy_score[fold_col_name] != test_fold) &
+                                                 (cls.synergy_score[fold_col_name] != evaluation_fold)].index)
 
-        if setting.index_in_literature:
-            evluation_fold = np.random.choice(list({0,1,2,3,4}-{test_fold}))
-            evluation_fold = 0 # hard-coded by original authors
-            test_index = np.array(cls.synergy_score[cls.synergy_score[fold] == test_fold].index)
-            evaluation_index = np.array(cls.synergy_score[cls.synergy_score[fold] == evluation_fold].index)
-            train_index = np.array(cls.synergy_score[(cls.synergy_score[fold] != test_fold) &
-                                                     (cls.synergy_score[fold] != evluation_fold)].index)
-
-        else:
-            train_index, test_index = drug_drug.split_data(cls.synergy_score, group_df=cls.synergy_score, group_col=[fold])
-            train_index, evaluation_index = drug_drug.split_data(cls.synergy_score,
-                                                                 group_df=cls.synergy_score[train_index],
-                                                                 group_col=[fold])
-
-        train_index = np.concatenate([train_index, train_index + cls.synergy_score.shape[0]])
-        evaluation_index_2 = evaluation_index + cls.synergy_score.shape[0]
-        test_index_2 = test_index + cls.synergy_score.shape[0]
+        # account for duplicating
+        num_rows = cls.synergy_score.shape[0]
+        train_index = np.concatenate([train_index, train_index + num_rows])
+        evaluation_index_2 = evaluation_index + num_rows
+        test_index_2 = test_index + num_rows
+        # if only testing
         if setting.unit_test:
             train_index, test_index, test_index_2, evaluation_index, evaluation_index_2 = \
                 train_index[:100], test_index[:100], test_index_2[:100], evaluation_index[:100], evaluation_index_2[:100]
-        yield train_index, test_index, test_index_2, evaluation_index, evaluation_index_2
+
+        return train_index, test_index, test_index_2, evaluation_index, evaluation_index_2
 
     @classmethod
     def cv_train_eval_test_split_generator(cls, fold='fold', test_fold=0):
+        """LEGACY! Only used in DeepSynergy"""
         if cls.synergy_score is None:
             cls.synergy_score = SynergyDataReader.get_synergy_score()
 
-        assert setting.index_in_literature, "Cross validation is only available when index_in_literature is set to True"
-        
         for evaluation_fold in range(5):
             if evaluation_fold == test_fold:
                 continue  # don't use test fold as evaluation fold
