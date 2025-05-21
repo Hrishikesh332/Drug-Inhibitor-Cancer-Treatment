@@ -16,9 +16,11 @@ class ExplainationConfig:
             self.feature_length = 33
         elif self.paper == "transynergy":
             gene_df = pd.read_csv("external\drug_combination\data\genes\genes_2401_df.csv")
-            feature_names_drugs = gene_df['symbol'].tolist() + ["pIC50"]
+            gene_symbols = gene_df['symbol'].tolist()
+            feature_names_drugs_a = [f"{g}_A" for g in gene_symbols] + ["pIC50_A"]
+            feature_names_drugs_b = [f"{g}_B" for g in gene_symbols] + ["pIC50_B"]
             feature_names_cell_lines = gene_df['symbol'].tolist() + ["padding_feature"]
             
-            self.feature_names = feature_names_drugs + feature_names_drugs + feature_names_cell_lines
+            self.feature_names = feature_names_drugs_a + feature_names_drugs_b + feature_names_cell_lines
             self.feature_length = 2402 
             # this is very important to "fold" the model imput correctly before forward pass
