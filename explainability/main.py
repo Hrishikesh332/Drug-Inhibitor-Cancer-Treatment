@@ -59,7 +59,6 @@ def run_explanation(model, model_name, method, X, Y, logger):
     elif method == 'activation_max':
         for regularization in [None, "l2", "l1"]:
             for maximize in [True, False]:
-                logger.info(f"Running activation maximization with regularization={regularization}, maximize={maximize}")
                 run_activation_maximization(
                     model, 
                     model_name, 
@@ -69,8 +68,6 @@ def run_explanation(model, model_name, method, X, Y, logger):
                     maximize=maximize,
                 )
     elif method == 'integrated_gradients':
-        logger.info("Running Integrated Gradients...")
-        print("Running Integrated Gradients...")
         run_integrated_gradients(model, model_name, X, Y, logger)
     else:
         raise ValueError(f"Unknown explanation method: {method}")
@@ -80,19 +77,6 @@ def main():
     
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.INFO)
-    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-
-    # Log to console
-    stream_handler = logging.StreamHandler(sys.stdout)
-    stream_handler.setFormatter(formatter)
-    logger.addHandler(stream_handler)
-    if not os.path.exists("logs"):
-        os.makedirs("logs")
-    file_handler = logging.FileHandler("logs/explainability_run.log")
-    file_handler.setFormatter(formatter)
-    logger.addHandler(file_handler)
-
-    print("Starting explainability run...")
 
     parser.add_argument(
         '--model',
@@ -110,17 +94,12 @@ def main():
     )
 
     args = parser.parse_args()
-
-    logger.info(f"Loading model: {args.model}")
     model = load_model(args.model)
     model.eval()
 
-    logger.info(f"Loading data for model: {args.model}")
     X, Y = load_data(args.model)
 
     run_explanation(model, args.model, args.method, X, Y, logger)
-
-    logger.info("Explainability run completed successfully.")
 
 
 if __name__ == '__main__': 
