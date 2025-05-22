@@ -10,7 +10,7 @@ from tqdm import tqdm
 import math
 import os
 import matplotlib.pyplot as plt
-from captum.attr import IntegratedGradients  # Import Captum
+from captum.attr import IntegratedGradients
 
 @dataclass
 class IntegratedGradientsConfig:
@@ -30,10 +30,8 @@ def compute_integrated_gradients(
     logger: Logger
 ) -> torch.Tensor:
         
-    # Initialize Captum's IntegratedGradients
     ig = IntegratedGradients(model)
     
-    # Compute attributions using Captum
     try:
         attributions = ig.attribute(
             inputs=input_tensor,
@@ -46,7 +44,7 @@ def compute_integrated_gradients(
         logger.error(f"Failed to compute Integrated Gradients with Captum: {str(e)}")
         raise
     
-    # Check for zero gradients
+    
     if torch.all(attributions == 0):
         logger.warning("All attributions are zero, which may indicate an issue with the model or inputs")
     
@@ -61,7 +59,6 @@ def run_integrated_gradients(
     **kwargs
 ):
        
-    # Convert inputs to tensors if they are NumPy arrays
     if isinstance(X, np.ndarray):
         X = torch.from_numpy(X).float()
     if isinstance(Y, np.ndarray):
@@ -78,11 +75,11 @@ def run_integrated_gradients(
     device = next(model.parameters()).device
     model.eval()
     
-    # Move inputs to device
+    
     X = X.to(device)
     Y = Y.to(device)
     
-    # Set baseline
+    
     if config.baseline_type == "zero":
         baseline = torch.zeros_like(X[0], device=device)
     else:
@@ -93,7 +90,7 @@ def run_integrated_gradients(
     elif paper == "biomining":
         baseline = baseline.view(1, config.cell_drug_feat_len_biomining)
     
-    # Process inputs in batches
+    
     all_attributions = []
     num_samples = X.shape[0]
     
@@ -114,7 +111,7 @@ def run_integrated_gradients(
             
             logger.debug(f"Sample {i+j} input shape: {input_tensor.shape}")
             
-            # Compute integrated gradients for this input using Captum
+            
             attributions = compute_integrated_gradients(
                 model,
                 input_tensor,
@@ -129,7 +126,6 @@ def run_integrated_gradients(
         
         all_attributions.append(batch_attributions)
         
-        # Log batch statistics with error handling for histogram
         batch_mean_attr = batch_attributions.abs().mean().item()
         batch_num = i // config.batch_size + 1
         log_dict = {
@@ -143,7 +139,6 @@ def run_integrated_gradients(
             logger.warning(f"Failed to log batch_attributions_histogram_{batch_num}: {str(e)}")
         
     
-    # Concatenate all attributions
     all_attributions = torch.cat(all_attributions, dim=0)
     logger.info(f"All attributions concatenated, final shape: {all_attributions.shape}, "
                 f"mean: {all_attributions.mean().item():.4f}, "
@@ -157,7 +152,6 @@ def run_integrated_gradients(
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
     torch.save(all_attributions, save_path)
     
-    # Log to wandb with error handling for final histogram
     log_dict = {}
     try:
         log_dict["attributions_histogram"] = wandb.Histogram(all_attributions.numpy())
@@ -176,6 +170,5 @@ def run_integrated_gradients(
     if log_dict:
         wandb.log(log_dict)
     
-    # Log the saved file to wandb
     save_with_wandb(save_path, name_of_object=f"{paper}_integrated_gradients.pt")
     wandb.finish()
