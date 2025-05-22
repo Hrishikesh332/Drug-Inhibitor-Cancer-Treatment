@@ -10,7 +10,7 @@ from explainability.utils import (
     load_biomining_data,
 )
 from explainability.am import run_activation_maximization
-
+from explainability.anchors import run_anchors
 
 @dataclass
 class ModelAndDataConfig:
@@ -41,29 +41,42 @@ def load_model(model_name: str):
     cfg = MODEL_DATA_REGISTRY[model_name]
     return cfg.model_loader(model_path=cfg.model_path)
 
-def load_data(model_name: str):
+def load_data(model_name: str, split: str = 'train'):
     if model_name not in MODEL_DATA_REGISTRY:
         raise ValueError(f"No data loader registered for model: {model_name}")
     cfg = MODEL_DATA_REGISTRY[model_name]
-    return cfg.data_loader()
+    return cfg.data_loader(split=split)
 
-
-def run_explanation(model, model_name, method, X, Y, logger):
+def run_explanation(model, model_name, method, X_train, Y_train, X_test, Y_test, logger):
     if method == 'shap':
         raise NotImplementedError("SHAP explainability not yet implemented.")
     elif method == 'anchors':
-        raise NotImplementedError("Anchors explainability not yet implemented.")
+        for fraction_explained in ["all", "bottom_10_percent", "top_10_percent", "random"]:
+            for threshold in [0.90, 0.95]:
+                logger.info(f"Running anchors with fraction_explained={fraction_explained}, threshold={threshold}")
+                run_anchors(
+                            model = model, 
+                            paper = model_name, 
+                            X_train = X_train,
+                            Y_train = Y_train,
+                            X_test = X_test,
+                            Y_test = Y_test,
+                            logger = logger,
+                            threshold=threshold,
+                            fraction_explained=fraction_explained,
+                            num_explanations=1000,
+                        )
     elif method == 'activation_max':
         for regularization in [None, "l2", "l1"]:
             for maximize in [True, False]:
                 logger.info(f"Running activation maximization with regularization={regularization}, maximize={maximize}")
                 run_activation_maximization(
-                    model, 
-                    model_name, 
-                    X,
-                    logger,
-                    regularization=regularization,
-                    maximize=maximize,
+                    model = model, 
+                    paper = model_name, 
+                    X = X_train,
+                    logger = logger,
+                    regularization = regularization,
+                    maximize = maximize,
                 )
     elif method == 'integrated_gradients':
         raise NotImplementedError("Integrated gradients not yet implemented.")
@@ -77,12 +90,12 @@ def main():
     
     parser.add_argument('--model', 
                         type=str, 
-                        default='biomining',
+                        default='transynergy',
                         choices=MODEL_DATA_REGISTRY.keys(),
                         help='Which model to explain')
     parser.add_argument('--method', 
                         type=str, 
-                        default='activation_max',
+                        default='anchors',
                         choices=['shap', 'anchors', 'activation_max', 'integrated_gradients'],
                         help='Which explainability method to use')
 
@@ -91,9 +104,17 @@ def main():
     model = load_model(args.model)
     model.eval()
 
-    X, Y = load_data(args.model)
+    X_train, Y_train = load_data(args.model)
+    X_test, Y_test = load_data(args.model, split='test')
 
-    run_explanation(model, args.model, args.method, X, Y, logger)
+    run_explanation(model = model, 
+                    model_name = args.model, 
+                    method = args.method, 
+                    X_train= X_train,
+                    Y_train= Y_train,
+                    X_test= X_test,
+                    Y_test= Y_test,
+                    logger=logger)
 
 
 if __name__ == '__main__': 
