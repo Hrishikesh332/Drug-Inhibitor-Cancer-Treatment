@@ -1,12 +1,10 @@
 import logging
-import os
-import pickle
+
 
 import h2o
 import pandas as pd
 import torch
 from scipy.stats import pearsonr
-from sklearn.model_selection import GroupKFold, ShuffleSplit
 
 import trans_synergy.settings
 
@@ -19,160 +17,6 @@ fh.setFormatter(fmt=formatter)
 logger = logging.getLogger("Drug Combination")
 logger.addHandler(fh)
 logger.setLevel(logging.DEBUG)
-
-class TensorReorganizer:
-
-    raw_tensor = None
-    def __init__(self, slice_indices, arrangement, dimension):
-
-        self.slice_indices = slice_indices
-        self.arrangement = arrangement
-        self.dimension = dimension
-
-    def load_raw_tensor(self, raw_tensor):
-        self.raw_tensor = raw_tensor
-
-    @classmethod
-    def recursive_len(cls, item):
-        if type(item) == list:
-            return sum(cls.recursive_len(subitem) for subitem in item)
-        else:
-            return 1
-
-    def get_feature_list_names(self, flatten = False):
-
-        whole_list_names = [x +'_a' for x in setting.drug_features] + [x + '_b' for x in setting.drug_features] \
-                           + [x for x in setting.cellline_features]
-        result_names = []
-        for ls in self.arrangement:
-            cur_len = self.slice_indices[ls[0]]
-            for i in ls:
-                assert self.slice_indices[i] == cur_len, "concatenated tensor has different dimensions"
-            result_names.append([whole_list_names[ls[-1]]])
-        if flatten:
-            result_names = [x for sublist in result_names for x in sublist]
-
-        return result_names
-
-    def get_features_names(self, flatten=False):
-
-        whole_list_names = [x + '_a' for x in setting.drug_features] + [x + '_b' for x in setting.drug_features] \
-                           + [x for x in setting.cellline_features] + [x for x in setting.single_response_feature]
-        result_names = []
-        for ls in self.arrangement:
-            cur_len = self.slice_indices[ls[0]]
-            for i in ls:
-                assert self.slice_indices[i] == cur_len, "concatenated tensor has different dimensions"
-            result_names.append(
-                [whole_list_names[ls[-1]] + '_' + str(j) for j in range(self.slice_indices[ls[-1]])])
-        result_names.append([whole_list_names[-1] + '_' + str(j) for j in range(
-            setting.single_repsonse_feature_length)])
-        if flatten:
-            result_names = [x for sublist in result_names for x in sublist]
-
-        return result_names
-
-    def get_reordered_slice_indices(self):
-
-        ### slice_indices: [2324, 400, 1200, 2324, 400, 1200, 2324]
-        ### arrangement: [[0, 3, 6, 6], [1, 4], [2, 5]]
-        ### return: [2324+2324+2324+2324, 400+400, 1200+1200]
-
-        # assert len(self.slice_indices) == self.recursive_len(self.arrangement), \
-        #     "slice indices length is not same with arrangement length"
-
-        result_slice_indices = []
-        for ls in self.arrangement:
-            cur_len = self.slice_indices[ls[0]]
-            for i in ls:
-                assert self.slice_indices[i] == cur_len, "concatenated tensor has different dimensions"
-            result_slice_indices.append(sum([self.slice_indices[i] for i in ls]))
-
-        return result_slice_indices
-
-    def __accum_slice_indices(self):
-
-        result_slice_indices = [0]
-        for i in range(1, len(self.slice_indices)):
-            result_slice_indices.append(result_slice_indices[-1] + self.slice_indices[i-1])
-        return result_slice_indices
-
-    def get_reordered_narrow_tensor(self):
-
-        ### arrangement: [[0, 3, 6], [1, 4], [2, 5]]
-
-        # assert len(self.slice_indices) == self.recursive_len(self.arrangement), \
-        #     "slice indices length is not same with arrangement length"
-
-        assert self.raw_tensor is not None, "Raw tensor should be loaded firstly"
-
-        result_tensors = []
-        cat_tensor_list = []
-        start_indices = self.__accum_slice_indices()
-        for ls in self.arrangement:
-            cur_len = self.slice_indices[ls[0]]
-            for index in ls:
-                assert self.slice_indices[index] == cur_len, "concatenated tensor has different dimensions"
-                cat_tensor_list.append(self.raw_tensor.narrow_copy(dim=self.dimension, start=start_indices[index],
-                                                              length=self.slice_indices[index]))
-            catted_tensor = torch.cat(tuple(cat_tensor_list), dim=1)
-            result_tensors.append(catted_tensor)
-            cat_tensor_list = []
-        if setting.single_repsonse_feature_length != 0:
-            single_response_feature = self.raw_tensor.narrow_copy(dim = self.dimension,
-                                                                  start=start_indices[-1] + self.slice_indices[-1],
-                                                                  length=setting.single_repsonse_feature_length)
-            result_tensors.append(single_response_feature)
-        return result_tensors
-
-def narrowed_tensors(raw_tensor, slice_indexs, dimension):
-
-    result_tensors = []
-    current_index = 0
-    for length in slice_indexs:
-        result_tensors.append(raw_tensor.narrow_copy(dimension, current_index, length))
-        current_index += length
-    assert current_index == list(raw_tensor.size())[dimension], "narrowed tensors didn't use all raw tensor data"
-    return result_tensors
-
-def regular_split(df, group_df = None, group_col=None, n_split = 10, rd_state = setting.split_random_seed):
-
-    shuffle_split = ShuffleSplit(test_size=1.0/n_split, random_state = rd_state)
-    return next(shuffle_split.split(df))
-
-def split_data(df, group_df = None, group_col = None):
-
-    logger.debug("Splitting dataset to training dataset and testing dataset based on genes")
-    if not setting.index_renewal and (os.path.exists(setting.train_index) and os.path.exists(setting.test_index)):
-        train_index = pickle.load(open(setting.train_index, "rb"))
-        test_index = pickle.load(open(setting.test_index, "rb"))
-    else:
-        train_index, test_index = drugs_combo_split(df, group_df, group_col)
-
-        with open(setting.train_index, 'wb') as train_file:
-                pickle.dump(train_index, train_file)
-        with open(setting.test_index, 'wb') as test_file:
-                pickle.dump(test_index, test_file)
-
-    logger.debug("Splitted data successfully")
-
-    return train_index, test_index
-
-def drugs_combo_split(df, group_df, group_col, n_split = 5, rd_state = setting.split_random_seed):
-
-    if group_df is None:
-        logging.debug("group df should not be empty")
-        raise ValueError("group df should not be empty")
-
-    logging.debug("groupkfold split based on %s" % str(group_col))
-    groupkfold = GroupKFold(n_splits=n_split)
-
-    groups = group_df.apply(lambda x: "_".join(list(x[group_col])), axis = 1)
-    groupkfold_instance = groupkfold.split(group_df, groups=groups)
-    for _ in range(rd_state%n_split):
-        next(groupkfold_instance)
-
-    return next(groupkfold_instance)
 
 
 def __ml_train_model():
