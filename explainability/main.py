@@ -3,7 +3,8 @@ import logging
 from typing import Callable
 from dataclasses import dataclass
 import sys
-import os	 
+import os
+
 from explainability.utils import (
     load_transynergy_model,
     load_biomining_model,
@@ -13,7 +14,6 @@ from explainability.utils import (
 from explainability.am import run_activation_maximization
 from explainability.anchors import run_anchors
 from explainability.ig.run import run_integrated_gradients
-
 
 @dataclass
 class ModelAndDataConfig:
@@ -49,7 +49,6 @@ def load_data(model_name: str, split: str = 'train'):
         raise ValueError(f"No data loader registered for model: {model_name}")
     cfg = MODEL_DATA_REGISTRY[model_name]
     return cfg.data_loader(split=split)
-
 
 def run_explanation(model, model_name, method, X_train, Y_train, X_test, Y_test, logger):
     if method == 'shap':
@@ -89,24 +88,19 @@ def run_explanation(model, model_name, method, X_train, Y_train, X_test, Y_test,
 
 def main():
     parser = argparse.ArgumentParser(description="Run explainability on model outputs")
-	
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.INFO)
     
     parser.add_argument('--model', 
-				  
                         type=str, 
                         default='transynergy',
                         choices=MODEL_DATA_REGISTRY.keys(),
                         help='Which model to explain')
-	 
     parser.add_argument('--method', 
-				   
                         type=str, 
                         default='anchors',
                         choices=['shap', 'anchors', 'activation_max', 'integrated_gradients'],
                         help='Which explainability method to use')
-	 
 
     args = parser.parse_args()
 
