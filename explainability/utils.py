@@ -1,12 +1,15 @@
-import torch
-import wandb
 import shutil
 from pathlib import Path
 from typing import Literal
+
+import torch
+import wandb
+
 import trans_synergy
 from trans_synergy.models.trans_synergy.attention_main import setup_data as setup_data_transynergy
 from external.predicting_synergy_nn.src.utils.data_loader import CVDatasetHandler
 from external.predicting_synergy_nn.src.models.architectures import SynergyModel
+
 
 def load_transynergy_model(model_path: str, map_location: str = 'cpu'):
     """
@@ -46,6 +49,8 @@ def load_transynergy_data(split:Literal['train', 'test'] = 'train'):
     Returns:
         DataFrame: Loaded data.
     """
+    if split == 'test':
+        split = 'test1'
     std_scaler, X, Y, _, _= setup_data_transynergy()
     split_func = trans_synergy.data.trans_synergy_data.DataPreprocessor.regular_train_eval_test_split
     partition = next(split_func(fold='fold', test_fold=4))

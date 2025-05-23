@@ -1,28 +1,15 @@
 import os
+from dataclasses import asdict
+from typing import Literal
+from logging import Logger
+
 import torch
 import wandb
 from tqdm import trange
-from dataclasses import dataclass, asdict
-from typing import Literal, Optional
-from explainability.utils import save_with_wandb
-from trans_synergy.utils import set_seed
-from logging import Logger
 
-@dataclass
-class ActivationMaximizationConfig:
-    paper: Literal["biomining", "transynergy"]
-    maximize: bool = True
-    num_trials: int = 5
-    input_bounds: tuple[float, float] = (0, 1)
-    steps: int = 2000
-    lr: float = 0.01
-    early_stopping: bool = True
-    patience: int = 50
-    regularization: Optional[Literal["l1", "l2"]] = None
-    cell_drug_feat_len_transynergy : int = 2402
-    cell_drug_feat_len_biomining: int = 33 
-    l1_lambda: float = 1e-3 # hyperparams for regularisation
-    l2_lambda: float = 1e-3 # hyperparams for regularisation
+from trans_synergy.utils import set_seed
+from explainability.utils import save_with_wandb
+from explainability.am.config import ActivationMaximizationConfig
 
 def run_activation_maximization(
     model: torch.nn.Module,
@@ -53,9 +40,9 @@ def run_activation_maximization(
         input_tensor = torch.randn(input_shape, requires_grad=True, device=device)
         
         if config.paper == "transynergy":
-            input_tensor = input_tensor.view(1, 3, config.cell_drug_feat_len_transynergy).clone().detach().requires_grad_(True)
+            input_tensor = input_tensor.view(1, 3, config.feature_length).clone().detach().requires_grad_(True)
         elif config.paper == "biomining":
-            input_tensor = input_tensor.view(1,  config.cell_drug_feat_len_biomining).clone().detach().requires_grad_(True)
+            input_tensor = input_tensor.view(1, config.feature_length).clone().detach().requires_grad_(True)
 
         optimizer = torch.optim.Adam([input_tensor], lr=config.lr)
 
