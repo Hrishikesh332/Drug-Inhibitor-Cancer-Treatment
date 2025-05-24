@@ -4,38 +4,13 @@ import torch
 from torch.utils.data import DataLoader, TensorDataset
 from sklearn.preprocessing import StandardScaler
 
-def load_data(cfg, dir_path, fold, target='ZIP', batch=100):
-    check_val = cfg['use_cross_val']
-    if not check_val:
-        train = pd.read_csv(os.path.join(dir_path, f'fold{fold}/fold{fold}_alltrain.csv'), header=0)
-        test = pd.read_csv(os.path.join(dir_path, f'fold{fold}/fold{fold}_test.csv'), header=0)
-    
-    else:
-        train = []
-        test = []
-        for i in range(1, fold + 1):
-            folder = os.path.join(dir_path, f"fold{i}")
-            train_file = os.path.join(folder, f"fold{i}_alltrain.csv")
-            test_file = os.path.join(folder, f"fold{i}_test.csv")
-            train_df = pd.read_csv(train_file, header=0)
-            test_df = pd.read_csv(test_file, header=0)
+def _preprocess_data(train, test, target='ZIP', batch=100):
 
-            train.append(train_df)
-            test.append(test_df)
-
-        train = pd.concat(train, ignore_index=True)
-        test = pd.concat(test, ignore_index=True)
-        train_duplicates = train.duplicated().sum() 
-        test_duplicates = test.duplicated().sum()
-        train = train.drop_duplicates().reset_index(drop=True)
-        test = test.drop_duplicates().reset_index(drop=True)
-    
-    train = train.sample(frac=1)
-    test = test.sample(frac=1)
+    train = train.sample(frac=1).reset_index(drop=True)
+    test = test.sample(frac=1).reset_index(drop=True)
     
     x_tr = train.iloc[:, 0:33].values
     y_tr = train[target].values.reshape(-1, 1)
-    
     x_ts = test.iloc[:, 0:33].values
     y_ts = test[target].values.reshape(-1, 1)
     
@@ -45,7 +20,6 @@ def load_data(cfg, dir_path, fold, target='ZIP', batch=100):
     y_ts = sc.transform(y_ts)
     
     dev = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    
     x_tr_t = torch.FloatTensor(x_tr).to(dev)
     y_tr_t = torch.FloatTensor(y_tr).to(dev)
     x_ts_t = torch.FloatTensor(x_ts).to(dev)
@@ -53,11 +27,39 @@ def load_data(cfg, dir_path, fold, target='ZIP', batch=100):
     
     tr_ds = TensorDataset(x_tr_t, y_tr_t)
     ts_ds = TensorDataset(x_ts_t, y_ts_t)
-    
     tr_dl = DataLoader(tr_ds, batch_size=batch, shuffle=True)
     ts_dl = DataLoader(ts_ds, batch_size=batch, shuffle=False)
     
     return x_tr, y_tr, x_ts, y_ts, sc, tr_dl, ts_dl
+
+def load_data_simple(dir_path, fold, target='ZIP', batch=100):
+    train = pd.read_csv(os.path.join(dir_path, f'fold{fold}/fold{fold}_alltrain.csv'), header=0)
+    test = pd.read_csv(os.path.join(dir_path, f'fold{fold}/fold{fold}_test.csv'), header=0)
+    
+    return _preprocess_data(train, test, target, batch)
+
+def load_data_cross_val(dir_path, fold, target='ZIP', batch=100):
+    train_dfs = []
+    test_dfs = []
+    
+    for i in range(1, fold + 1):
+        folder = os.path.join(dir_path, f"fold{i}")
+        train_file = os.path.join(folder, f"fold{i}_alltrain.csv")
+        test_file = os.path.join(folder, f"fold{i}_test.csv")
+        train_dfs.append(pd.read_csv(train_file, header=0))
+        test_dfs.append(pd.read_csv(test_file, header=0))
+    
+    
+    train = pd.concat(train_dfs, ignore_index=True).drop_duplicates().reset_index(drop=True)
+    test = pd.concat(test_dfs, ignore_index=True).drop_duplicates().reset_index(drop=True)
+    
+    return _preprocess_data(train, test, target, batch)
+
+def load_data(cfg, dir_path, fold, target='ZIP', batch=100):
+    if cfg['use_cross_val']:
+        return load_data_cross_val(dir_path, fold, target, batch)
+    else:
+        return load_data_simple(dir_path, fold, target, batch)
 
 def load_valid_data(dir_path, fold, split, target='ZIP', batch=100):
     train = pd.read_csv(os.path.join(dir_path, f'fold{fold}/validation/fold{fold}_train{split}.csv'), header=0)

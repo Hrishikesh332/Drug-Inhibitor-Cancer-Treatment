@@ -91,14 +91,6 @@ def train_model(cfg, tr_dl, ts_dl,sc, in_dim):
     data_dir = str(cfg.get('data_dir', 'data'))
     out_dir = str(cfg.get('out_dir', 'outputs'))
     
-    #print("Configuration parameters:")
-    #print(f"  fold: {fold} (type: {type(fold)})")
-    #print(f"  arch: {arch} (type: {type(arch)})")
-    #print(f"  batch: {batch} (type: {type(batch)})")
-    #print(f"  lr: {lr} (type: {type(lr)})")
-    #print(f"  epochs: {epochs} (type: {type(epochs)})")
-    #print(f"  drop: {drop} (type: {type(drop)})")
-    
     model_dir = os.path.join(out_dir, 'models')
     log_dir = os.path.join(out_dir, 'logs')
     res_dir = os.path.join(out_dir, 'results')
@@ -109,7 +101,6 @@ def train_model(cfg, tr_dl, ts_dl,sc, in_dim):
     start = time.time()
     
     dev = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    #print(f"Using: {dev}")
     
     if use_wb:
         wandb.init(project=wb_proj, name=wb_run, 
@@ -124,8 +115,6 @@ def train_model(cfg, tr_dl, ts_dl,sc, in_dim):
     
     if tr_dl is None or ts_dl is None or sc is None or in_dim is None:
         x_tr, y_tr, x_ts, y_ts, sc, tr_dl, ts_dl = load_data(cfg, data_dir, fold, batch=batch)
-        #print(f"Train shape: {x_tr.shape}, Test shape: {x_ts.shape}")
-
     model = SynergyModel(in_dim=in_dim, arch=arch, drop=drop).to(dev)
     crit = nn.MSELoss()
     
