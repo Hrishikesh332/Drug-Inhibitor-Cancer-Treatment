@@ -248,6 +248,9 @@ def train_and_eval_model(
         pearson_corr_test = pearsonr(y_test, test_preds)[0]
         if logger:
             logger.info(f"[{model_name}] Test Score: {test_score}")
+            logger.info(f"[{model_name}] Spearman Score: {spearman_corr_test}")
+            logger.info(f"[{model_name}] Pearson Score: {pearson_corr_test}")
+
 
         test_table.add_data(
             model_name,
@@ -260,7 +263,7 @@ def train_and_eval_model(
         wandb.log({f"Test Results Table": test_table})
 
     if output_path and best_model is not None:
-        joblib.dump(best_model, output_path)
+        joblib.dump(best_model, f"{output_path}/{model_name}_best.pkl")
 
     wandb.finish()
 
