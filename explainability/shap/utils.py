@@ -2,6 +2,7 @@ from sklearn.cluster import MiniBatchKMeans
 from sklearn.decomposition import PCA
 import numpy as np
 import torch
+from typing import Literal
 
 def select_representative_samples(X: torch.Tensor, num_samples: int):
     device = X.device
@@ -26,3 +27,21 @@ def select_representative_samples(X: torch.Tensor, num_samples: int):
     indices = list(set(indices))
     selected_samples = X[indices]
     return selected_samples
+    
+def load_shap_data(
+    paper: Literal["biomining", "transynergy"],
+    base_dir_path: str = "./explainability/shap/results",
+):
+    import numpy as np
+    from pathlib import Path
+
+    npz_path = Path(base_dir_path) / paper / "shap_complete.npz"
+    if not npz_path.exists():
+        raise FileNotFoundError(f"SHAP complete data file not found: {npz_path}")
+
+    data = np.load(npz_path, allow_pickle=True)
+    shap_values = data["shap_values"]
+    inputs = data["inputs"]
+    feature_names = data["feature_names"].tolist()
+    return shap_values, inputs, feature_names
+

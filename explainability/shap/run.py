@@ -1,6 +1,6 @@
-import os
 import torch
 import shap
+import json
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -13,6 +13,7 @@ from logging import Logger
 from explainability.utils import save_with_wandb
 from explainability.shap.utils import select_representative_samples
 from explainability.shap.config import SHAPExplanationConfig
+
 
 def run_shap_explanation(
     model: torch.nn.Module,
@@ -81,11 +82,25 @@ def run_shap_explanation(
     output_dir = Path(f"explainability/shap/results/{paper}")
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    shap_values_tensor = torch.tensor(shap_values_matrix)
-    shap_values_path = output_dir / "shap_values.pt"
-    torch.save(shap_values_tensor, shap_values_path)
+    if isinstance(test_inputs, torch.Tensor):
+        inputs_np = test_inputs.detach().cpu().numpy()
+        if inputs_np.ndim == 3:
+            inputs_np = inputs_np.reshape(inputs_np.shape[0], -1)
+    else:
+        inputs_np = np.array(test_inputs)
 
-    logger.info(f"SHAP values saved locally at {shap_values_path}")
-    save_with_wandb(str(shap_values_path), name_of_object=f"{paper}_shap_values.pt")
+    npz_path = output_dir / "shap_complete.npz"
+    np.savez_compressed(
+        npz_path,
+        shap_values=shap_values_matrix,
+        inputs=inputs_np,
+        feature_names=np.array(config.feature_names)
+    )
+
+    logger.info(f"Saved complete SHAP data at {output_dir / 'shap_complete.npz'}")
+
+    artifact = wandb.Artifact(f"{paper}_shap_complete_data", type="shap_data")
+    artifact.add_file(str(npz_path))
+    wandb.log_artifact(artifact)
 
     wandb.finish()
