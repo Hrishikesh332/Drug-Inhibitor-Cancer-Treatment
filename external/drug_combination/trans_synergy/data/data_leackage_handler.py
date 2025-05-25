@@ -69,20 +69,20 @@ class DataLeakageHandler:
         """
         key_cols = ['drug_a_name', 'drug_b_name', 'cell_line']
         df = self.df.copy()
-        df_indexed = df.set_index(key_cols)
-
+        
         is_test = df[self.current_fold] == test_fold_idx
         is_val = df[self.current_fold] == val_fold_idx
         is_test_val = is_test | is_val
         is_train = ~is_test_val
 
-        test_combos = set(df_indexed[is_test].index)
-        val_combos = set(df_indexed[is_val].index)
-        train_combos = set(df_indexed[is_train].index)
+        test_combos = set(tuple(row) for row in df.loc[is_test, key_cols].values)
+        val_combos = set(tuple(row) for row in df.loc[is_val, key_cols].values)
+        train_combos = set(tuple(row) for row in df.loc[is_train, key_cols].values)
 
         leakage_test_train = test_combos & train_combos
         leakage_val_train = val_combos & train_combos
         leakage_val_test = val_combos & test_combos
+        leakage_test_train = set(leakage_test_train)
 
         if verbose:
             print(f"[{self.current_fold}] Leakage:")
@@ -90,11 +90,14 @@ class DataLeakageHandler:
             print(f"  • Val  ↔ Train: {len(leakage_val_train)}")
             print(f"  • Val  ↔ Test : {len(leakage_val_test)}")
 
-        to_drop_train = is_train & df_indexed.index.isin(leakage_test_train | leakage_val_train)
-        to_drop_val = is_val & df_indexed.index.isin(leakage_val_test)
-        to_drop = to_drop_train | to_drop_val
-        cleaned_df = df[~to_drop].reset_index(drop=True)
+        df_key_tuples = df[key_cols].apply(tuple, axis=1)
 
+        to_drop_train = is_train & df_key_tuples.isin(leakage_test_train | leakage_val_train)
+        to_drop_val = is_val & df_key_tuples.isin(leakage_val_test)
+        to_drop = to_drop_train | to_drop_val
+
+        cleaned_df = df[~to_drop].reset_index(drop=True)
+        
         if verbose:
             print(f"Original rows: {len(df)}")
             print(f"Remaining rows after cleaning: {len(cleaned_df)}")
