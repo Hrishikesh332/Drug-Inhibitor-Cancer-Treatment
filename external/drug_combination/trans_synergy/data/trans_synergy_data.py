@@ -3,10 +3,12 @@ from os import mkdir, path
 
 import numpy as np
 import pandas as pd
-import trans_synergy.settings
+from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from torch import save
 from torch.utils import data
+
+import trans_synergy.settings
 from trans_synergy.data import network_propagation
 
 setting = trans_synergy.settings.get()
@@ -1181,21 +1183,30 @@ class DataPreprocessor:
             if evaluation_fold == test_fold:
                 continue  # don't use test fold as evaluation fold
 
-            test_index = np.array(cls.synergy_score[cls.synergy_score[fold] == test_fold].index)
-            evaluation_index = np.array(cls.synergy_score[cls.synergy_score[fold] == evaluation_fold].index)
-            train_index = np.array(cls.synergy_score[(cls.synergy_score[fold] != test_fold) &
-                                                    (cls.synergy_score[fold] != evaluation_fold)].index)
+            # we do not use the "real" test fold only the eval fold!
+            test_index = np.array(cls.synergy_score[cls.synergy_score[fold] == evaluation_fold].index)
 
-            # include both forward and reverse pairs
+            candidate_index = np.array(cls.synergy_score[
+                (cls.synergy_score[fold] != test_fold) &
+                (cls.synergy_score[fold] != evaluation_fold)
+            ].index)
+
+            train_index, evaluation_index = train_test_split(
+                candidate_index,
+                test_size=0.2,
+                random_state=42,
+                shuffle=True
+            )
+            # accounts for permutation of drugs
             train_index = np.concatenate([train_index + cls.synergy_score.shape[0], train_index])
-            evaluation_index_2 = evaluation_index + cls.synergy_score.shape[0]
-            test_index_2 = test_index + cls.synergy_score.shape[0]
+            evaluation_index_doubled = evaluation_index + cls.synergy_score.shape[0]
+            test_index_doubled = test_index + cls.synergy_score.shape[0]
 
             if setting.unit_test:
                 train_index, test_index, test_index_2, evaluation_index, evaluation_index_2 = \
                     train_index[:100], test_index[:100], test_index_2[:100], evaluation_index[:100], evaluation_index_2[:100]
 
-            yield train_index, test_index, test_index_2, evaluation_index, evaluation_index_2
+            yield train_index, test_index, test_index_doubled, evaluation_index, evaluation_index_doubled
 
 
 class TransSynergyDataset(data.Dataset):

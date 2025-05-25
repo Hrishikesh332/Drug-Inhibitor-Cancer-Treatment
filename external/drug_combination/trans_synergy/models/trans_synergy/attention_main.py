@@ -1,6 +1,5 @@
 import logging
 import pickle
-import random
 import shutil
 from os import environ, makedirs, path, sep
 
@@ -182,12 +181,13 @@ def setup_model_and_optimizer(reorder_tensor):
 def enumerate_splits(split_func):
     return tqdm(split_func(fold='fold', test_fold=4), desc="Folds", total=1)
 
-def init_wandb(fold_idx: int = None, testing: bool = False):
+def init_wandb(fold_idx: int = None, testing: bool = False, crossval = False):
+    suffix_cv = ' crossval' if crossval else ''
     if testing:
-        wandb.init(project="Drug combination TRANSYNERGY Testing")
+        wandb.init(project="Drug combination TRANSYNERGY Testing" + suffix_cv,)
     else:
         wandb.init(
-            project=f"Drug combination TRANSYNERGY fold_{fold_idx}",
+            project=f"Drug combination TRANSYNERGY fold_{fold_idx}{suffix_cv}",
             name=path.basename(setting.run_dir).rsplit(sep, 1)[-1] + '_' + setting.data_specific[:15] + '_' + str(random_seed),
             notes=setting.data_specific
         )
@@ -197,10 +197,22 @@ def init_wandb(fold_idx: int = None, testing: bool = False):
     return wandb
 
 
-def train_loop(model, best_model, train_loader, val_loader, optimizer, scheduler, reorder_tensor, std_scaler, use_wandb, slice_indices):
+def train_loop(model, 
+               best_model, 
+               train_loader, 
+               val_loader, 
+               optimizer, 
+               scheduler, 
+               reorder_tensor, 
+               std_scaler, 
+               use_wandb, 
+               slice_indices, 
+               patience = 50,
+               n_epochs = 800):
     best_val_score = -float("inf")
+    epochs_without_improvement = 0
 
-    for epoch in tqdm(range(setting.n_epochs), desc="Training Epochs"):
+    for epoch in tqdm(range(n_epochs), desc="Training Epochs"):
         model.to(device2)
         model.train()
         train_loss, train_preds, train_ys = 0, [], []
@@ -254,15 +266,24 @@ def train_loop(model, best_model, train_loader, val_loader, optimizer, scheduler
             best_val_score = val_metrics['pearson']
             best_model.load_state_dict(model.state_dict())
             logger.debug("New best model saved.")
+            epochs_without_improvement = 0  # reset counter
+        else:
+            epochs_without_improvement += 1
+            logger.debug(f"No improvement for {epochs_without_improvement} epochs.")
 
         logger.info(f"Epoch {epoch+1}: Val MSE={val_metrics['mse']:.4f}, Pearson={val_metrics['pearson']:.4f}")
-    
+
+        if epochs_without_improvement >= patience:
+            logger.info(f"Early stopping triggered after {epoch+1} epochs without improvement.")
+            break
+
     return best_model
+
 
 def evaluate(model, data_loader, reorder_tensor, std_scaler, slice_indices, log_model=False):
     model.eval()
     all_preds, all_ys = [], []
-
+    model.to(device2)
     with torch.no_grad():
         for batch, labels in data_loader:
             batch = batch.float().to(device2)
@@ -293,9 +314,9 @@ def evaluate(model, data_loader, reorder_tensor, std_scaler, slice_indices, log_
         "spearman": spearmanr(all_preds.ravel(), all_ys.ravel())[0]
     }
 
-def test_best_model(model, test_loader, reorder_tensor, std_scaler, slice_indices, use_wandb=False):
+def test_best_model(model, test_loader, reorder_tensor, std_scaler, slice_indices, use_wandb=False, crossval=False):
     if use_wandb:
-        init_wandb(testing=True)
+        init_wandb(testing=True, crossval=crossval)
 
     if setting.load_old_model:
         model.load_state_dict(load(setting.old_model_path).state_dict())
@@ -358,7 +379,8 @@ def train_model_on_fold(fold_idx, partition, X, Y, std_scaler, reorder_tensor,
             reorder_tensor = reorder_tensor, 
             std_scaler = std_scaler, 
             use_wandb=  use_wandb, 
-            slice_indices = slice_indices)
+            slice_indices = slice_indices,
+            n_epochs=setting.n_epochs)
 
     save_model(best_model, setting.run_dir, fold_idx)
 
@@ -478,5 +500,4 @@ def run(use_wandb: bool = True):
     if setting.perform_importance_study:
         run_importance_study( setting, all_data_generator_total, all_data_generator, partition, reorder_tensor, slice_indices,
             device2, best_drug_model, logger)
-        
         
