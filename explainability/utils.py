@@ -22,7 +22,7 @@ def load_transynergy_model(model_path: str, map_location: str = 'cpu'):
     Returns:
         torch.nn.Module: Loaded  model.
     """
-    model = torch.load(model_path, map_location=map_location)
+    model = torch.load(model_path, map_location=map_location, weights_only=False)
     model.eval()
     return model
     
@@ -53,7 +53,7 @@ def load_transynergy_data(split:Literal['train', 'test'] = 'train'):
         split = 'test1'
     std_scaler, X, Y, _, _= setup_data_transynergy()
     split_func = trans_synergy.data.trans_synergy_data.DataPreprocessor.regular_train_eval_test_split
-    partition = next(split_func(fold='fold', test_fold=4))
+    partition = split_func(fold_col_name="fold", test_fold=4, evaluation_fold=0)
     partition_indices = {
             'train': partition[0],
             'test1': partition[1],
