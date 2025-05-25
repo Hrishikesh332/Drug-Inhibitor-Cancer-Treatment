@@ -51,7 +51,13 @@ def load_data(model_name: str, split: str = 'train'):
 
 def run_explanation(model, model_name, method, X_train, Y_train, X_test, Y_test, logger):
     if method == 'shap':
-        run_shap_explanation(model, model_name, X, Y, logger)
+        run_shap_explanation(
+                            model=model,
+                            paper=model_name,
+                            X_train=X_train,
+                            X_test=X_test,
+                            logger=logger
+                        )
     elif method == 'anchors':
         for fraction_explained in ["all", "bottom_10_percent", "top_10_percent", "random"]:
             for threshold in [0.90, 0.95]:

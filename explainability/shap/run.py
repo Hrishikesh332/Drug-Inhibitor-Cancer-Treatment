@@ -6,57 +6,23 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from pathlib import Path
 from tqdm import tqdm
-from dataclasses import dataclass, asdict
-from typing import Literal, Optional
+from dataclasses import asdict
+from typing import Literal
 import wandb
 from logging import Logger
 from explainability.utils import save_with_wandb
-from sklearn.cluster import MiniBatchKMeans
-from sklearn.decomposition import PCA
-
-@dataclass
-class SHAPExplanationConfig:
-    paper: Literal["biomining", "transynergy"]
-    # represents the baseline input distribution for SHAP comparisons
-    min_background_samples: int = 10
-    max_background_samples: int = 20
-    # how many input examples will receive SHAP explanations
-    min_test_samples: int = 10
-    max_test_samples: int = 20
-
-def select_representative_samples(X: torch.Tensor, num_samples: int, logger: Logger):
-    device = X.device
-    X_np = X.detach().cpu().numpy()
-    if X_np.ndim == 3:
-        X_np = X_np.reshape(X_np.shape[0], -1)
-
-    pca = PCA(n_components=min(50, X_np.shape[1]))
-    X_reduced = pca.fit_transform(X_np)
-
-    n_clusters = min(num_samples, X_np.shape[0])
-
-    kmeans = MiniBatchKMeans(n_clusters=n_clusters, random_state=42, batch_size=100, max_iter=100)
-    kmeans.fit(X_reduced)
-
-    centers = kmeans.cluster_centers_
-    indices = []
-    for center in centers:
-        distances = np.linalg.norm(X_reduced - center, axis=1)
-        idx = np.argmin(distances)
-        indices.append(idx)
-    indices = list(set(indices))
-    selected_samples = X[indices]
-    return selected_samples, indices
+from explainability.shap.utils import select_representative_samples
+from explainability.shap.config import SHAPExplanationConfig
 
 def run_shap_explanation(
     model: torch.nn.Module,
     paper: Literal["biomining", "transynergy"],
-    X: torch.Tensor,
-    Y: Optional[torch.Tensor],
+    X_train: torch.Tensor,
+    X_test: torch.Tensor,
     logger: Logger,
-    config: Optional[SHAPExplanationConfig] = None,
+    **kwargs
 ):
-    config = config or SHAPExplanationConfig(paper=paper)
+    config = SHAPExplanationConfig(paper=paper, **kwargs)
     device = next(model.parameters()).device
     model.eval()
     model = model.to(device)
@@ -69,38 +35,36 @@ def run_shap_explanation(
 
     logger.info(f"Running SHAP (GradientExplainer) for model: {paper}")
 
-    if isinstance(X, np.ndarray):
-        X = torch.tensor(X, dtype=torch.float32)
-    X = X.to(device)
+    if isinstance(X_train, np.ndarray):
+        X_train = torch.tensor(X_train, dtype=torch.float32)
+    if isinstance(X_test, np.ndarray):
+        X_test = torch.tensor(X_test, dtype=torch.float32)
 
-    if paper == "transynergy":
-        if X.ndim == 2:
-            batch_size, total_features = X.shape
+    X_train = X_train.to(device)
+    X_test = X_test.to(device)
+
+    if config.paper == "transynergy":
+        if X_train.ndim == 2:
+            batch_size_train, total_features = X_train.shape
             if total_features % 3 != 0:
                 raise ValueError(f"Expected transynergy input features divisible by 3, got {total_features}")
             feature_dim = total_features // 3
-            logger.info(f"Reshaping transynergy input: ({batch_size}, {total_features}) → ({batch_size}, 3, {feature_dim})")
-            X = X.view(batch_size, 3, feature_dim)
+            logger.info(f"Reshaping transynergy X_train: ({batch_size_train}, {total_features}) → ({batch_size_train}, 3, {feature_dim})")
+            X_train = X_train.view(batch_size_train, 3, feature_dim)
+        if X_test.ndim == 2:
+            batch_size_test, total_features = X_test.shape
+            if total_features % 3 != 0:
+                raise ValueError(f"Expected transynergy input features divisible by 3, got {total_features}")
+            feature_dim = total_features // 3
+            logger.info(f"Reshaping transynergy X_test: ({batch_size_test}, {total_features}) → ({batch_size_test}, 3, {feature_dim})")
+            X_test = X_test.view(batch_size_test, 3, feature_dim)
 
-    dataset_size = X.shape[0]
+    # sample size is equal to percentage but at least the minimum and no more than the maximum configured limits
+    background_size = min(max(config.min_background, int(X_train.shape[0] * config.samples_percentage)), config.max_background) 
+    test_size = min(max(config.min_test, int(X_test.shape[0] * config.samples_percentage)), config.max_test)
 
-    #at most config.max or 2%
-    background_size = min(max(config.min_background_samples, int(dataset_size * 0.05)), config.max_background_samples) 
-    test_size = min(max(config.min_test_samples, int(dataset_size * 0.05)), config.max_test_samples)
-
-    background, background_indices = select_representative_samples(X, background_size, logger)
-    
-    # avoid overlap with background samples if possible
-    all_indices = set(range(dataset_size))
-    remaining_indices = list(all_indices - set(background_indices))
-    if len(remaining_indices) < test_size:
-        test_indices = background_indices[:test_size]
-    else:
-        test_candidates = X[remaining_indices]
-        test, test_indices_local = select_representative_samples(test_candidates, test_size, logger)
-        test_indices = [remaining_indices[i] for i in test_indices_local]
-    
-    test_inputs = X[test_indices]
+    background = select_representative_samples(X_train, background_size)
+    test_inputs = select_representative_samples(X_test, test_size)
 
     explainer = shap.GradientExplainer(model, background)
 
@@ -109,17 +73,10 @@ def run_shap_explanation(
         val = explainer.shap_values(test_inputs[i:i+1])
         shap_values.append(val)
 
-    if paper == "transynergy":
+    if config.paper == "transynergy":
         shap_values_matrix = np.array([sample.reshape(-1) for sample in shap_values])
-    elif paper == "biomining":
+    elif config.paper == "biomining":
         shap_values_matrix = np.vstack([sv[0] for sv in shap_values])
-
-    input_numpy = test_inputs.detach().cpu().numpy()
-    if input_numpy.ndim == 3:
-        input_numpy = input_numpy.reshape(input_numpy.shape[0], -1)
-
-    if shap_values_matrix.shape != input_numpy.shape:
-        raise ValueError("Mismatch between SHAP values and input data shape.")
 
     output_dir = Path(f"explainability/shap/results/{paper}")
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -127,38 +84,8 @@ def run_shap_explanation(
     shap_values_tensor = torch.tensor(shap_values_matrix)
     shap_values_path = output_dir / "shap_values.pt"
     torch.save(shap_values_tensor, shap_values_path)
+
     logger.info(f"SHAP values saved locally at {shap_values_path}")
-    save_with_wandb(str(shap_values_path), name_of_object=f"{paper}_shap_values")
-
-    plot_path = output_dir / "summary_plot.png"
-
-    if paper == "biomining":
-        biomining_feature_names = [
-            "ABL", "ABLb", "CSF1R", "CSF1Rb", "EGFR", "EGFRb", "FLT1", "FLT1b", "FLT4", "FLT4b",
-            "KDR", "KDRb", "KIT", "KITb", "MCL1", "MCL1b", "NR1I2", "NR1I2b", "PDGFRB", "PDGFRBb",
-            "RET", "RETb", "TOP2", "TOP2b", "TUB1", "TUB1b", "GATA3", "NF1", "NF2", "P53", "PI3K", "PTEN", "RAS"
-        ]
-        shap.summary_plot(shap_values_matrix, input_numpy, feature_names=biomining_feature_names, show=False)
-
-    elif paper == "transynergy":
-        gene_csv_path = os.path.join("external", "drug_combination", "data", "genes", "genes_2401_df.csv")
-
-        gene_df = pd.read_csv(gene_csv_path)
-        gene_symbols = gene_df['symbol'].tolist()
-
-        drug_feature_names = gene_symbols + ['pIC50']
-        cellline_feature_names = gene_symbols
-
-        feature_names = (
-            [f"drugA_{name}" for name in drug_feature_names] +
-            [f"drugB_{name}" for name in drug_feature_names] +
-            [f"cellline_{name}" for name in cellline_feature_names]
-        )
-
-        shap.summary_plot(shap_values_matrix, input_numpy, feature_names=feature_names, show=False)
-
-    plt.savefig(plot_path)
-    logger.info(f"SHAP summary plot saved to {plot_path}")
-    wandb.log({"shap_summary_plot": wandb.Image(str(plot_path))})
+    save_with_wandb(str(shap_values_path), name_of_object=f"{paper}_shap_values.pt")
 
     wandb.finish()
