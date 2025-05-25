@@ -1151,7 +1151,7 @@ class DataPreprocessor:
         if cls.synergy_score is None:
             cls.synergy_score = SynergyDataReader.get_synergy_score()
 
-    # add masking data leackage here
+
     @classmethod
     def regular_train_eval_test_split(cls, test_fold: int, evaluation_fold: int, fold_col_name = 'fold') -> tuple[np.array, np.array, np.array, np.array, np.array]:
         # lazy load
@@ -1177,6 +1177,7 @@ class DataPreprocessor:
                 train_index[:100], test_index[:100], test_index_2[:100], evaluation_index[:100], evaluation_index_2[:100]
 
         return train_index, test_index, test_index_2, evaluation_index, evaluation_index_2
+
 
     @classmethod
     def cv_train_eval_test_split_generator(cls, fold='fold', test_fold: int = 0):
