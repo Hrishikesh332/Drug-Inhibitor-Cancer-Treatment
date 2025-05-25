@@ -1,3 +1,23 @@
+# -----------------------------------------------------------------------------
+# Flexible Cross-Validation Runner 
+#
+# This function exposes a highly configurable cross-validation pipeline via CLI,
+# thanks to Python Fire. You can easily tweak your experiment setup without
+# touching the code:
+#
+#   --settings_choice   Choose which data setting to use (gene_dependency, gene_expression, netexpress)
+#   --fold_col_name     Specify the column name for fold assignment (default: "fold")
+#   --use_wandb         Enable or disable Weights & Biases logging (default: True)
+#   --n_params_in_grid  Number of hyperparameter combinations to try (default: 10)
+#   --test_fold         Which fold to use as the test set (default: 4)
+#   --epochs_in_cv      Number of epochs for each cross-validation run (default: 100)
+#
+# Example usage:
+#   python run_cv.py --settings_choice=gene_expression --use_wandb=True --n_params_in_grid=20
+#
+# All arguments are optional and have sensible defaults, making experimentation fast and reproducible!
+# -----------------------------------------------------------------------------
+
 import logging
 
 import fire
@@ -25,15 +45,20 @@ def run_crossvalidation(
         settings_choice: str = "gene_dependency",
         fold_col_name: str = "fold",
         use_wandb: bool = True,
+        n_params_in_grid: int = 10,
+        test_fold: int = 4,
+        epochs_in_cv: int = 10
 ):
     if settings_choice not in _CLI_INPUT_TO_CONFIG_MAP:
         raise ValueError(f"The setting {settings_choice} is not recognised. Please choose one of: {_CLI_INPUT_TO_CONFIG_MAP.keys()}")
     settings_obj = _CLI_INPUT_TO_CONFIG_MAP[settings_choice]
     settings.configure(settings_obj)
     configure_logging(settings_obj.logfile)
-    run(use_wandb, fold_col_name=fold_col_name)
+    run(use_wandb, 
+        fold_col_name=fold_col_name,
+        n_params_in_grid=n_params_in_grid,
+        test_fold=test_fold,
+        epochs_in_cv=epochs_in_cv)
 
 if __name__ == "__main__":
-    
-    # todo: add argument with the fold name
     fire.Fire(run_crossvalidation)

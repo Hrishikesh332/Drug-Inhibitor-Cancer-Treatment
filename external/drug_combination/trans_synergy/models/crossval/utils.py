@@ -1,7 +1,16 @@
 import torch
+import copy
+import wandb
+from frozendict import frozendict
+
+import trans_synergy
 import trans_synergy.settings
 from trans_synergy.models.trans_synergy.attention_model import (
-    TransposeMultiTransformersPlusLinear
+    TransposeMultiTransformersPlusLinear,
+    init_wandb,
+    train_loop,
+    prepare_splitted_dataloaders,
+    evaluate,
     )
 from trans_synergy.utils import set_seed
 
@@ -74,3 +83,107 @@ def setup_model_and_optimizer_with_params(reorder_tensor, params):
     )
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=100, eta_min=1e-7)
     return drug_model, optimizer, scheduler
+
+def train_model_and_eval(
+        eval_idx,
+        partition,
+        X,
+        Y,
+        std_scaler,
+        reorder_tensor,
+        drug_model,
+        best_drug_model,
+        optimizer,
+        scheduler,
+        use_wandb,
+        slice_indices,
+        model_params,
+        save_model = False,
+        testing = False,
+        n_epochs = 100
+):
+    """
+    Cross-validation method that builds model from params using get_multi_models.
+    """
+    if use_wandb:
+        init_wandb(eval_idx, crossval=True, testing = testing)
+
+    train_idx, test1_idx, test2_idx, eval1_idx, eval2_idx = partition
+
+    std_scaler.fit(Y[train_idx])
+
+    if setting.y_transform:
+        Y_scaled = std_scaler.transform(Y) * 100
+    else:
+        Y_scaled = Y
+
+    (
+        training_generator,
+        _,
+        validation_generator,
+        test_generator,
+        all_data_generator,
+        _,
+    ) = prepare_splitted_dataloaders(
+        {
+            "train": train_idx,
+            "test1": test1_idx,
+            "test2": test2_idx,
+            "eval1": eval1_idx,
+            "eval2": eval2_idx,
+        },
+        Y_scaled.reshape(-1),
+        X,
+    )
+    if model_params is not None:
+        wandb.config.update(model_params)
+
+    if best_drug_model is None:
+        best_drug_model = copy.deepcopy(drug_model)
+
+    best_model = train_loop(
+        model=drug_model,
+        best_model=best_drug_model,
+        train_loader=training_generator,
+        val_loader=validation_generator,
+        optimizer=optimizer,
+        scheduler=scheduler,
+        reorder_tensor=reorder_tensor,
+        std_scaler=std_scaler,
+        use_wandb=use_wandb,
+        slice_indices=slice_indices,
+        all_data_loader=all_data_generator,
+        n_epochs=n_epochs
+    )
+    results = evaluate(
+                best_model,
+                test_generator,
+                reorder_tensor,
+                std_scaler,
+                slice_indices,
+                use_wandb,
+            )
+    if save_model:
+        save_model(best_model, setting.run_dir, eval_idx)
+
+    if use_wandb:
+        wandb.finish()
+
+    return results
+
+def make_hashable(d):
+    if isinstance(d, dict):
+        return frozendict({k: make_hashable(v) for k, v in d.items()})
+    elif isinstance(d, list):
+        return tuple(make_hashable(x) for x in d)
+    else:
+        return d
+    
+def unhashable(d):
+    """Recursively convert frozendicts and tuples back to dicts and lists."""
+    if isinstance(d, frozendict):
+        return {k: unhashable(v) for k, v in d.items()}
+    elif isinstance(d, tuple):
+        return [unhashable(x) for x in d]
+    else:
+        return d
