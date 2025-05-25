@@ -10,12 +10,43 @@ from dataclasses import dataclass, asdict
 from typing import Literal, Optional
 import wandb
 from logging import Logger
+from explainability.utils import save_with_wandb
+from sklearn.cluster import MiniBatchKMeans
+from sklearn.decomposition import PCA
 
 @dataclass
 class SHAPExplanationConfig:
     paper: Literal["biomining", "transynergy"]
-    max_background_samples: int = 200
-    max_test_samples: int = 200
+    # represents the baseline input distribution for SHAP comparisons
+    min_background_samples: int = 10
+    max_background_samples: int = 20
+    # how many input examples will receive SHAP explanations
+    min_test_samples: int = 10
+    max_test_samples: int = 20
+
+def select_representative_samples(X: torch.Tensor, num_samples: int, logger: Logger):
+    device = X.device
+    X_np = X.detach().cpu().numpy()
+    if X_np.ndim == 3:
+        X_np = X_np.reshape(X_np.shape[0], -1)
+
+    pca = PCA(n_components=min(50, X_np.shape[1]))
+    X_reduced = pca.fit_transform(X_np)
+
+    n_clusters = min(num_samples, X_np.shape[0])
+
+    kmeans = MiniBatchKMeans(n_clusters=n_clusters, random_state=42, batch_size=100, max_iter=100)
+    kmeans.fit(X_reduced)
+
+    centers = kmeans.cluster_centers_
+    indices = []
+    for center in centers:
+        distances = np.linalg.norm(X_reduced - center, axis=1)
+        idx = np.argmin(distances)
+        indices.append(idx)
+    indices = list(set(indices))
+    selected_samples = X[indices]
+    return selected_samples, indices
 
 def run_shap_explanation(
     model: torch.nn.Module,
@@ -51,10 +82,25 @@ def run_shap_explanation(
             logger.info(f"Reshaping transynergy input: ({batch_size}, {total_features}) → ({batch_size}, 3, {feature_dim})")
             X = X.view(batch_size, 3, feature_dim)
 
-    background_size = min(config.max_background_samples, X.shape[0])
-    test_size = min(config.max_test_samples, X.shape[0])
-    background = X[:background_size]
-    test_inputs = X[:test_size]
+    dataset_size = X.shape[0]
+
+    #at most config.max or 2%
+    background_size = min(max(config.min_background_samples, int(dataset_size * 0.05)), config.max_background_samples) 
+    test_size = min(max(config.min_test_samples, int(dataset_size * 0.05)), config.max_test_samples)
+
+    background, background_indices = select_representative_samples(X, background_size, logger)
+    
+    # avoid overlap with background samples if possible
+    all_indices = set(range(dataset_size))
+    remaining_indices = list(all_indices - set(background_indices))
+    if len(remaining_indices) < test_size:
+        test_indices = background_indices[:test_size]
+    else:
+        test_candidates = X[remaining_indices]
+        test, test_indices_local = select_representative_samples(test_candidates, test_size, logger)
+        test_indices = [remaining_indices[i] for i in test_indices_local]
+    
+    test_inputs = X[test_indices]
 
     explainer = shap.GradientExplainer(model, background)
 
@@ -77,6 +123,13 @@ def run_shap_explanation(
 
     output_dir = Path(f"explainability/shap/results/{paper}")
     output_dir.mkdir(parents=True, exist_ok=True)
+
+    shap_values_tensor = torch.tensor(shap_values_matrix)
+    shap_values_path = output_dir / "shap_values.pt"
+    torch.save(shap_values_tensor, shap_values_path)
+    logger.info(f"SHAP values saved locally at {shap_values_path}")
+    save_with_wandb(str(shap_values_path), name_of_object=f"{paper}_shap_values")
+
     plot_path = output_dir / "summary_plot.png"
 
     if paper == "biomining":
