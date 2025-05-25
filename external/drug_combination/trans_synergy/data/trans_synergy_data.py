@@ -1178,7 +1178,6 @@ class DataPreprocessor:
 
         return train_index, test_index, test_index_2, evaluation_index, evaluation_index_2
 
-    # add masking data leackage here
     @classmethod
     def cv_train_eval_test_split_generator(cls, fold='fold', test_fold: int = 0):
         if cls.synergy_score is None:

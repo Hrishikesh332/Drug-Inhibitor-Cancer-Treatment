@@ -70,12 +70,13 @@ def run(use_wandb: bool = True,
         current_results[hashable_params] = []
         for eval_idx, partition in tqdm(
             enumerate(split_cv_func(fold=fold_col_name, test_fold=test_fold)),
-            total=len(sampled_combinations),  # or set to number of folds if known
+            total=5,
             desc="CV folds"
         ):
             init_wandb(
                 fold_idx=eval_idx,
                 crossval=True,
+                fold_col_name=fold_col_name,
             )
             drug_model, optimizer, scheduler = (
                 setup_model_and_optimizer_with_params(reorder_tensor, params)
@@ -92,13 +93,14 @@ def run(use_wandb: bool = True,
                 best_drug_model,
                 optimizer,
                 scheduler,
-                use_wandb,
-                slice_indices,
-                params,
+                use_wandb = False,
+                slice_indices = slice_indices,
+                model_params = params,
                 save_model = False,
                 testing = False,
                 n_epochs = epochs_in_cv,
-                patience = patience
+                patience = patience,
+                fold_col_name=fold_col_name,
                 )
             current_results[hashable_params].append(results['mse'])
             wandb.finish()
@@ -136,6 +138,7 @@ def run(use_wandb: bool = True,
         n_epochs = setting.n_epochs,
         save_model=True,
         testing=True,
-        patience = 100
+        patience = 100,
+        fold_col_name=fold_col_name,
     )
     wandb.finish()

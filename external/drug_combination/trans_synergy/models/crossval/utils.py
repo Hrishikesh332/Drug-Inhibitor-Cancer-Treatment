@@ -103,13 +103,14 @@ def train_model_and_eval(
         save_model = False,
         testing = False,
         n_epochs = 100,
-        patience = 50
+        patience = 50,
+        fold_col_name=None
 ):
     """
     Cross-validation method that builds model from params using get_multi_models.
     """
     if use_wandb:
-        init_wandb(eval_idx, crossval=True, testing = testing)
+        init_wandb(eval_idx, crossval=True, testing = testing, fold_col_name = fold_col_name)
 
     train_idx, test1_idx, test2_idx, eval1_idx, eval2_idx = partition
 
