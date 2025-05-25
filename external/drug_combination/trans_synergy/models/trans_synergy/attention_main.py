@@ -181,13 +181,13 @@ def setup_model_and_optimizer(reorder_tensor):
 def enumerate_splits(split_func):
     return tqdm(split_func(fold='fold', test_fold=4), desc="Folds", total=1)
 
-def init_wandb(fold_idx: int = None, testing: bool = False, crossval = False):
+def init_wandb(fold_idx: int = None, testing: bool = False, crossval = False, fold_col_name = 'fold'):
     suffix_cv = ' crossval' if crossval else ''
     if testing:
-        wandb.init(project="Drug combination TRANSYNERGY Testing" + suffix_cv,)
+        wandb.init(project=f"Drug combination TRANSYNERGY Testing [{fold_col_name}] " + suffix_cv,)
     else:
         wandb.init(
-            project=f"Drug combination TRANSYNERGY fold_{fold_idx}{suffix_cv}",
+            project=f"Drug combination TRANSYNERGY [{fold_col_name}] fold_{fold_idx}{suffix_cv}",
             name=path.basename(setting.run_dir).rsplit(sep, 1)[-1] + '_' + setting.data_specific[:15] + '_' + str(random_seed),
             notes=setting.data_specific
         )
@@ -314,9 +314,9 @@ def evaluate(model, data_loader, reorder_tensor, std_scaler, slice_indices, log_
         "spearman": spearmanr(all_preds.ravel(), all_ys.ravel())[0]
     }
 
-def test_best_model(model, test_loader, reorder_tensor, std_scaler, slice_indices, use_wandb=False, crossval=False):
+def test_best_model(model, test_loader, reorder_tensor, std_scaler, slice_indices, use_wandb=False, crossval=False, fold_col_name = 'fold'):
     if use_wandb:
-        init_wandb(testing=True, crossval=crossval)
+        init_wandb(testing=True, crossval=crossval, fold_col_name = fold_col_name)
 
     if setting.load_old_model:
         model.load_state_dict(load(setting.old_model_path).state_dict())
@@ -350,9 +350,9 @@ def save_model(model, save_path, fold):
         wandb.save(wandb_model_path, base_path = wandb.run.dir)
 
 def train_model_on_fold(fold_idx, partition, X, Y, std_scaler, reorder_tensor,
-                        drug_model, best_drug_model, optimizer, scheduler, use_wandb, slice_indices):
+                        drug_model, best_drug_model, optimizer, scheduler, use_wandb, slice_indices, fold_col_name='fold'):
     if use_wandb:
-        init_wandb(fold_idx)
+        init_wandb(fold_idx, fold_col_name = fold_col_name)
     
     partition_indices = {
         'train': partition[0],
@@ -497,7 +497,7 @@ def run(use_wandb: bool = True,
     fold_idx = 0
     partition = split_func(fold_col_name=fold_col_name, test_fold=test_fold, evaluation_fold=eval_fold)
     training_generator, validation_generator, test_generator, all_data_generator, all_data_generator_total = train_model_on_fold(fold_idx, partition, X, Y, std_scaler, reorder_tensor,
-                        drug_model, best_drug_model, optimizer, scheduler, use_wandb, slice_indices)
+                        drug_model, best_drug_model, optimizer, scheduler, use_wandb, slice_indices, fold_col_name = fold_col_name)
 
     test_best_model(best_drug_model, test_generator, reorder_tensor, std_scaler, slice_indices, use_wandb)
     if setting.perform_importance_study:
