@@ -212,7 +212,7 @@ def train_loop(model,
     best_val_score = -float("inf")
     epochs_without_improvement = 0
 
-    for epoch in tqdm(range(n_epochs), desc="Training Epochs"):
+    for epoch in tqdm(range(n_epochs), desc="Training Epochs", leave=False):
         model.to(device2)
         model.train()
         train_loss, train_preds, train_ys = 0, [], []

@@ -5,6 +5,7 @@ import random
 
 import numpy as np
 import wandb
+from tqdm import tqdm
 from sklearn.model_selection import ParameterGrid
 
 import trans_synergy
@@ -64,10 +65,14 @@ def run(use_wandb: bool = True,
     sampled_combinations = random.sample(all_combinations, k=min(n_params_in_grid, len(all_combinations)))
 
     current_results = {}
-    for params in sampled_combinations:
+    for params in tqdm(sampled_combinations, desc="Param grid search"):
         hashable_params = make_hashable(params)
         current_results[hashable_params] = []
-        for eval_idx, partition in enumerate(split_cv_func(fold = fold_col_name, test_fold=test_fold)):
+        for eval_idx, partition in tqdm(
+            enumerate(split_cv_func(fold=fold_col_name, test_fold=test_fold)),
+            total=len(sampled_combinations),  # or set to number of folds if known
+            desc="CV folds"
+        ):
             init_wandb(
                 fold_idx=eval_idx,
                 crossval=True,
