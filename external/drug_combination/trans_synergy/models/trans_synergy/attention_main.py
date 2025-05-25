@@ -479,7 +479,10 @@ def run_importance_study(
         pickle.dump(batch_transform_input_importance, open(setting.transform_input_importance_path, 'wb+'))
 
 
-def run(use_wandb: bool = True):
+def run(use_wandb: bool = True,
+        fold_col_name: str = 'fold',
+        test_fold: int = 4,
+        eval_fold: int = 0):
     if not use_wandb:
         environ["WANDB_MODE"] = "dryrun"
 
@@ -492,7 +495,7 @@ def run(use_wandb: bool = True):
     
     split_func = trans_synergy.data.trans_synergy_data.DataPreprocessor.regular_train_eval_test_split
     fold_idx = 0
-    partition = split_func(fold_col_name='fold', test_fold=4, evaluation_fold=0)
+    partition = split_func(fold_col_name=fold_col_name, test_fold=test_fold, evaluation_fold=eval_fold)
     training_generator, validation_generator, test_generator, all_data_generator, all_data_generator_total = train_model_on_fold(fold_idx, partition, X, Y, std_scaler, reorder_tensor,
                         drug_model, best_drug_model, optimizer, scheduler, use_wandb, slice_indices)
 

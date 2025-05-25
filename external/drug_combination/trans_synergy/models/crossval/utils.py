@@ -7,6 +7,8 @@ import trans_synergy
 import trans_synergy.settings
 from trans_synergy.models.trans_synergy.attention_model import (
     TransposeMultiTransformersPlusLinear,
+    )
+from trans_synergy.models.trans_synergy.attention_main import (
     init_wandb,
     train_loop,
     prepare_splitted_dataloaders,
@@ -100,7 +102,8 @@ def train_model_and_eval(
         model_params,
         save_model = False,
         testing = False,
-        n_epochs = 100
+        n_epochs = 100,
+        patience = 50
 ):
     """
     Cross-validation method that builds model from params using get_multi_models.
@@ -152,8 +155,8 @@ def train_model_and_eval(
         std_scaler=std_scaler,
         use_wandb=use_wandb,
         slice_indices=slice_indices,
-        all_data_loader=all_data_generator,
-        n_epochs=n_epochs
+        n_epochs=n_epochs,
+        patience=patience
     )
     results = evaluate(
                 best_model,

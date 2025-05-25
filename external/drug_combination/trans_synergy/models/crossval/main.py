@@ -26,12 +26,11 @@ def run(use_wandb: bool = True,
         fold_col_name: str = "fold",
         n_params_in_grid: int = 10,
         test_fold = 4,
-        epochs_in_cv: int = 100):
+        epochs_in_cv: int = 100,
+        patience: int = 50):
     """
     Crossval with the set test fold as 4th index.
     """
-    #todo: remove from here
-    n_epochs_in_cv = 100 # cite badanie 
     
     if not use_wandb:
         environ["WANDB_MODE"] = "dryrun"
@@ -93,7 +92,8 @@ def run(use_wandb: bool = True,
                 params,
                 save_model = False,
                 testing = False,
-                n_epochs = n_epochs_in_cv
+                n_epochs = epochs_in_cv,
+                patience = patience
                 )
             current_results[hashable_params].append(results['mse'])
             wandb.finish()
@@ -130,6 +130,7 @@ def run(use_wandb: bool = True,
         best_params,
         n_epochs = setting.n_epochs,
         save_model=True,
-        testing=True
+        testing=True,
+        patience = 100
     )
     wandb.finish()
