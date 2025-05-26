@@ -48,14 +48,15 @@ def load_data(model_name: str, split: str = 'train'):
     cfg = MODEL_DATA_REGISTRY[model_name]
     return cfg.data_loader(split=split)
 
-def run_explanation(model, model_name, method, X_train, Y_train, X_test, Y_test, logger):
+def run_explanation(model, model_name, method, X_train, Y_train, X_test, Y_test, logger, **kwargs):
     if method == 'shap':
         run_shap_explanation(
                             model=model,
                             paper=model_name,
                             X_train=X_train,
                             X_test=X_test,
-                            logger=logger
+                            logger=logger, 
+                            **kwargs
                         )
     elif method == 'anchors':
         for fraction_explained in ["all", "bottom_10_percent", "top_10_percent", "random"]:

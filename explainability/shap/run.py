@@ -10,8 +10,7 @@ from dataclasses import asdict
 from typing import Literal
 import wandb
 from logging import Logger
-from explainability.utils import save_with_wandb
-from explainability.shap.utils import select_representative_samples
+from explainability.shap.utils import select_representative_samples, reshape_transynergy_input
 from explainability.shap.config import SHAPExplanationConfig
 
 
@@ -44,28 +43,25 @@ def run_shap_explanation(
     X_train = X_train.to(device)
     X_test = X_test.to(device)
 
-    if config.paper == "transynergy":
-        if X_train.ndim == 2:
-            batch_size_train, total_features = X_train.shape
-            if total_features % 3 != 0:
-                raise ValueError(f"Expected transynergy input features divisible by 3, got {total_features}")
-            feature_dim = total_features // 3
-            logger.info(f"Reshaping transynergy X_train: ({batch_size_train}, {total_features}) → ({batch_size_train}, 3, {feature_dim})")
-            X_train = X_train.view(batch_size_train, 3, feature_dim)
-        if X_test.ndim == 2:
-            batch_size_test, total_features = X_test.shape
-            if total_features % 3 != 0:
-                raise ValueError(f"Expected transynergy input features divisible by 3, got {total_features}")
-            feature_dim = total_features // 3
-            logger.info(f"Reshaping transynergy X_test: ({batch_size_test}, {total_features}) → ({batch_size_test}, 3, {feature_dim})")
-            X_test = X_test.view(batch_size_test, 3, feature_dim)
-
     # sample size is equal to percentage but at least the minimum and no more than the maximum configured limits
     background_size = min(max(config.min_background, int(X_train.shape[0] * config.samples_percentage)), config.max_background) 
     test_size = min(max(config.min_test, int(X_test.shape[0] * config.samples_percentage)), config.max_test)
 
-    background = select_representative_samples(X_train, background_size)
-    test_inputs = select_representative_samples(X_test, test_size)
+    if config.paper == "transynergy":
+        X_train_sample = X_train.view(X_train.shape[0], -1) 
+        X_test_sample = X_test.view(X_test.shape[0], -1)    
+    else:
+        X_train_sample = X_train
+        X_test_sample = X_test
+        
+    background = select_representative_samples(X_train_sample, background_size)
+    test_inputs = select_representative_samples(X_test_sample, test_size)
+
+    if config.paper == "transynergy":
+        X_train = reshape_transynergy_input(X_train, logger, "X_train")
+        X_test = reshape_transynergy_input(X_test, logger, "X_test")
+        background = background.view(background.shape[0], 3, -1)
+        test_inputs = test_inputs.view(test_inputs.shape[0], 3, -1)
 
     explainer = shap.GradientExplainer(model, background)
 
