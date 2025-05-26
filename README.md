@@ -119,7 +119,7 @@ python scripts/run_grid_search.py --folds 1,2,3 --splits 1,2,3 --config configs/
 ```
 
 ## Data Leakage
-To ensure robust model performance and avoid overfitting, data leakage checks are performed for both **Biomining Neural Network** and **TranSynergy** submodules. These checks verify that training, validation, and test sets are properly separated and free from unintended overlaps or biases.
+At the start of the project, data leakage checks were conducted for both Biomining Neural Network and TranSynergy submodules to ensure robust model performance and prevent overfitting. These checks confirmed that training, validation, and test sets were properly separated, free from unintended overlaps or biases, and any identified issues were resolved.
 
 - **Biomining Neural Network**:  
   - Checks for **correlation of data** to identify redundant or highly correlated features that could lead to leakage.  
@@ -192,8 +192,13 @@ This section describes how to generate explanations for the drug synergy models 
 - Biomining Neural Network
 
 **Supported Methods**:
-- **Activation Maximization**: Applicable to both TranSynergy and Biomining.
-- **Anchors**: Only for Biomining due to computational cost.
+- **Activation Maximization**: Activation maximization is an explainability technique that generates synthetic input samples to maximize (or minimize) the output of a neural network model. By optimizing the input to strongly activate a particular neuron or output, we can gain insights into what patterns or features the model has learned to associate with high or low predictions. Applicable to both TranSynergy and Biomining.
+- **Anchors**: Anchors are a model-agnostic method that generates simple, high-precision IF-THEN rules to explain a model's predictions by identifying critical features that ensure the same outcome. Only performed for Biomining due to computational cost.
+-  **SHAP**: SHAP estimates how much each input feature contributes to a prediction by assigning an importance value called a Shapley value. This value shows how much the feature pushes the model’s output away from or toward a baseline (usually the average prediction). Performed SHAP on both Transynergy and Biomining.
+
+
+
+
 
 **Running Explanations(Example)**:
 ```bash
