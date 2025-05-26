@@ -2,7 +2,6 @@ import argparse
 import logging
 from typing import Callable
 from dataclasses import dataclass
-import os
 
 from explainability.utils import (
     load_transynergy_model,
