@@ -6,9 +6,11 @@ import os
 import pandas as pd
 
 # Define paths
-SAVE_PATH = "results/transynergy_integrated_gradients.pt"
-BATCH_SAVE_DIR = "results/transynergy_batch_attributions"
-HIST_SAVE_DIR = "results/transynergy_histograms"
+SAVE_PATH = "explainability/ig/results/transynergy_integrated_gradients.pt"
+BATCH_SAVE_DIR = "explainability/ig/results/transynergy_batch_attributions"
+HIST_SAVE_DIR = "explainability/ig/results/transynergy_histograms"
+os.makedirs(os.path.dirname(SAVE_PATH), exist_ok=True)
+os.makedirs(BATCH_SAVE_DIR, exist_ok=True)
 os.makedirs(HIST_SAVE_DIR, exist_ok=True)
 
 gene_symbols = [f"gene_{str(i).zfill(4)}" for i in range(1, 2402)]  
