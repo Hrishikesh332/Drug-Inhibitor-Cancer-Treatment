@@ -33,8 +33,8 @@ def run(
     fold_col_name: str = "fold",
     n_params_in_grid: int = 10,
     test_fold=4,
-    epochs_in_cv: int = 100,
-    patience: int = 50,
+    epochs_in_cv: int = 400,
+    patience: int = 100,
 ):
     """
     Crossval with the set test fold as 4th index.

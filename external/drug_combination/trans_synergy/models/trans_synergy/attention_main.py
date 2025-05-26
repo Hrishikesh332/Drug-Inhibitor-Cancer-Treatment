@@ -207,7 +207,7 @@ def train_loop(model,
                std_scaler, 
                use_wandb, 
                slice_indices, 
-               patience = 50,
+               patience = 100,
                n_epochs = 800):
     best_val_score = -float("inf")
     epochs_without_improvement = 0
@@ -499,7 +499,7 @@ def run(use_wandb: bool = True,
     training_generator, validation_generator, test_generator, all_data_generator, all_data_generator_total = train_model_on_fold(fold_idx, partition, X, Y, std_scaler, reorder_tensor,
                         drug_model, best_drug_model, optimizer, scheduler, use_wandb, slice_indices, fold_col_name = fold_col_name)
 
-    test_best_model(best_drug_model, test_generator, reorder_tensor, std_scaler, slice_indices, use_wandb)
+    test_best_model(best_drug_model, test_generator, reorder_tensor, std_scaler, slice_indices, use_wandb, fold_col_name = fold_col_name)
     if setting.perform_importance_study:
         run_importance_study( setting, all_data_generator_total, all_data_generator, partition, reorder_tensor, slice_indices,
             device2, best_drug_model, logger)
