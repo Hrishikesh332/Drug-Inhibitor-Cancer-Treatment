@@ -9,8 +9,8 @@ from explainability.utils import (
     load_transynergy_data,
     load_biomining_data,
 )
-from explainability.am import run_activation_maximization
 from explainability.anchors import run_anchors
+from explainability.am import run_activation_maximization
 
 @dataclass
 class ModelAndDataConfig:
