@@ -1,3 +1,4 @@
+## RESULT
 
 #### Check results
 check the logfile in the newest ```_run_*****``` folder
