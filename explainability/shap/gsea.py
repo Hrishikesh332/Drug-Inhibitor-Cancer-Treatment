@@ -54,12 +54,10 @@ def clean_and_aggregate_features(
     return ranking_df
 
 def expand_gene_family(
-    ranking_df: pd.DataFrame, 
-    split_score: bool = True
+    ranking_df: pd.DataFrame
 ) -> pd.DataFrame:
     """
-    If split_score is True, divide the shap score among family.
-    Otherwise, give full score to each.
+    Always divides the shap score evenly among family members.
     """
     expanded_rows = []
     for _, row in ranking_df.iterrows():
@@ -67,13 +65,9 @@ def expand_gene_family(
         score = row['score']
         if gene in gene_name_map:
             mapped_genes = gene_name_map[gene]
-            if split_score:
-                score_per_gene = score / len(mapped_genes)
-                for mgene in mapped_genes:
-                    expanded_rows.append({'gene': mgene.upper(), 'score': score_per_gene})
-            else:
-                for mgene in mapped_genes:
-                    expanded_rows.append({'gene': mgene.upper(), 'score': score})
+            score_per_gene = score / len(mapped_genes)
+            for mgene in mapped_genes:
+                expanded_rows.append({'gene': mgene.upper(), 'score': score_per_gene})
         else:
             expanded_rows.append({'gene': gene.upper(), 'score': score})
 
@@ -82,44 +76,40 @@ def expand_gene_family(
     return expanded_df.sort_values(by='score', ascending=False)
 
 def check_features_in_gene_sets(
-    features: List[str],
+    ranking_df_expanded: pd.DataFrame,
     gene_set_library: str
 ) -> Dict[str, Set[str]]:
     gene_sets = gp.get_library(name=gene_set_library, organism='Human')
     feature_presence = {}
-    features_set = set(features)
+    features_set = set(ranking_df_expanded['gene'].tolist())
     
     for gene in features_set:
         containing_sets = {gs for gs, genes in gene_sets.items() if gene in genes}
         feature_presence[gene] = containing_sets
 
-    return feature_presence
+    print(f"Genes NOT found in {gene_set_library}):")
+    not_found_count = 0
+    for _, row in ranking_df_expanded.iterrows():
+        gene = row['gene']
+        score = row['score']
+        if not feature_presence.get(gene, set()):
+            print(f"{gene:10s} | SHAP score: {score:.6f}")
+            not_found_count += 1
+    
+    print(f"{not_found_count} were not found")
 
 def perform_gsea_with_cleaned_genes(
     model: str,
     base_dir_path: str = "./explainability/shap/results",
     gene_set_library: str = "MSigDB_Hallmark_2020",
     save_dir: str = "./explainability/shap/results/gsea_results",
-    split_score: bool = True,
 ) -> pd.DataFrame:
     shap_values, inputs, feature_names = load_shap_data(model, base_dir_path)
 
     ranking_df = clean_and_aggregate_features(feature_names, shap_values, model=model)
-    ranking_df_expanded = expand_gene_family(ranking_df, split_score=split_score)
-    presence = check_features_in_gene_sets(ranking_df_expanded['gene'].tolist(), gene_set_library)
-
-    print(f"Genes NOT found in {gene_set_library} (split_score={split_score}):")
-    not_found_count = 0
-    for _, row in ranking_df_expanded.iterrows():
-        gene = row['gene']
-        score = row['score']
-        if not presence.get(gene, set()):
-            if not_found_count < 10:
-                print(f"{gene:10s} | SHAP score: {score:.6f}")
-            else:
-                print(f"more than 10 genes not found")
-                break
-            not_found_count += 1
+    ranking_df_expanded = expand_gene_family(ranking_df)
+    
+    #check_features_in_gene_sets(ranking_df_expanded, gene_set_library)
 
     ranked_gene_list = ranking_df_expanded.set_index('gene')['score']
 
@@ -138,8 +128,7 @@ def perform_gsea_with_cleaned_genes(
     )
 
     os.makedirs(save_dir, exist_ok=True)
-    split_str = "split" if split_score else "full"
-    save_path = os.path.join(save_dir, f"{model}_GSEA_{gene_set_library}_{split_str}.pkl")
+    save_path = os.path.join(save_dir, f"{model}_GSEA_{gene_set_library}.pkl")
 
     gsea_results.res2d.to_pickle(save_path)
 
@@ -161,13 +150,4 @@ if __name__ == "__main__":
         perform_gsea_with_cleaned_genes(
             model=model,
             gene_set_library=lib,
-            split_score=True,
         )
-        
-        if model == "biomining":
-            print(f"\nRunning GSEA with gene set library: {lib} (full scores) for model {model}")
-            perform_gsea_with_cleaned_genes(
-                model=model,
-                gene_set_library=lib,
-                split_score=False,
-            )
