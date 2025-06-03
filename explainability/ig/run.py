@@ -15,7 +15,7 @@ from captum.attr import IntegratedGradients
 class IntegratedGradientsConfig:
     paper: Literal["biomining", "transynergy"]
     n_steps: int = 50
-    baseline_type: str = "shuffled"  # [zero, mean, shuffled, random]
+    baseline_type: str = "mean"  # [zero, mean, shuffled, random]
     cell_drug_feat_len_transynergy: int = 2402
     cell_drug_feat_len_biomining: int = 33
     batch_size: int = 32
@@ -154,7 +154,7 @@ def run_integrated_gradients(
 
     save_path = f"explainability/ig/results/{paper}_integrated_gradients_{config.baseline_type}.pt"
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
-    torch.save(all_attributions, save_path, weights_only=True)
+    torch.save(all_attributions, save_path)
 
     log_dict = {}
     try:
