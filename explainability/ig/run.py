@@ -1,7 +1,7 @@
 import torch
 import wandb
 from dataclasses import dataclass, asdict
-from typing import Literal, Optional
+from typing import Literal
 from logging import Logger
 from explainability.utils import save_with_wandb
 from trans_synergy.utils import set_seed
@@ -9,14 +9,13 @@ import numpy as np
 from tqdm import tqdm
 import math
 import os
-import matplotlib.pyplot as plt
 from captum.attr import IntegratedGradients
 
 @dataclass
 class IntegratedGradientsConfig:
     paper: Literal["biomining", "transynergy"]
     n_steps: int = 50
-    baseline_type: str = "zero"
+    baseline_type: str = "shuffled"  # [zero, mean, shuffled, random]
     cell_drug_feat_len_transynergy: int = 2402
     cell_drug_feat_len_biomining: int = 33
     batch_size: int = 32
@@ -29,25 +28,20 @@ def compute_integrated_gradients(
     device: torch.device,
     logger: Logger
 ) -> torch.Tensor:
-        
     ig = IntegratedGradients(model)
-    
     try:
         attributions = ig.attribute(
             inputs=input_tensor,
             baselines=baseline,
             n_steps=n_steps,
-            return_convergence_delta=False 
+            return_convergence_delta=False
         )
         logger.debug(f"Attributions shape: {attributions.shape}, mean: {attributions.mean().item():.4f}, abs mean: {attributions.abs().mean().item():.4f}")
     except Exception as e:
-        logger.error(f"Failed to compute Integrated Gradients with Captum: {str(e)}")
+        logger.error(f"Failed to compute Integrated Gradients: {str(e)}")
         raise
-    
-    
     if torch.all(attributions == 0):
         logger.warning("All attributions are zero, which may indicate an issue with the model or inputs")
-    
     return attributions
 
 def run_integrated_gradients(
@@ -58,74 +52,85 @@ def run_integrated_gradients(
     logger: Logger,
     **kwargs
 ):
-       
     if isinstance(X, np.ndarray):
         X = torch.from_numpy(X).float()
     if isinstance(Y, np.ndarray):
         Y = torch.from_numpy(Y).float()
-    
+
     config = IntegratedGradientsConfig(paper=paper, **kwargs)
-    
+
     wandb.init(
         project=f"EXPLAINABILITY on {config.paper} integrated-gradients",
         config=asdict(config),
-        name=f"{paper}_integrated_gradients",
+        name=f"{paper}_integrated_gradients_{config.baseline_type}",
     )
-    
+
     device = next(model.parameters()).device
     model.eval()
-    
-    
     X = X.to(device)
     Y = Y.to(device)
-    
-    
+
+    input_size = X.shape[1]
     if config.baseline_type == "zero":
-        baseline = torch.zeros_like(X[0], device=device)
+        baseline = torch.zeros(1, input_size, device=device)
+
+    elif config.baseline_type == "mean":
+        baseline = X.mean(dim=0, keepdim=True).to(device)
+
+    elif config.baseline_type == "random":
+        if paper == "transynergy":
+            drug_part = torch.randint(0, 2, (1, 2 * 2401), device=device).float()  
+            cell_part_size = input_size - (2 * 2401)  
+            cell_part = torch.rand(1, cell_part_size, device=device) * (X[:, -cell_part_size:].max() - X[:, -cell_part_size:].min()) + X[:, -cell_part_size:].min()
+            baseline = torch.cat([drug_part, cell_part], dim=1)
+        else:  # biomining
+            baseline = torch.rand(1, config.cell_drug_feat_len_biomining, device=device) * (X.max() - X.min()) + X.min()
+
+    elif config.baseline_type == "shuffled":
+        indices = torch.randperm(input_size, device=device)
+        baseline = X[0:1, indices].to(device)
+
     else:
         raise ValueError(f"Unsupported baseline type: {config.baseline_type}")
+
     
     if paper == "transynergy":
-        baseline = baseline.view(1, 3, config.cell_drug_feat_len_transynergy)
+        expected_size = 3 * config.cell_drug_feat_len_transynergy  
+        if input_size == expected_size:
+            baseline = baseline.view(1, 3, config.cell_drug_feat_len_transynergy)
+        else:
+            logger.warning(f"Input size {input_size} does not match expected {expected_size}. Using flat baseline.")
     elif paper == "biomining":
         baseline = baseline.view(1, config.cell_drug_feat_len_biomining)
-    
-    
+
     all_attributions = []
     num_samples = X.shape[0]
-    
     total_batches = math.ceil(num_samples / config.batch_size)
-    
-    
+
     for i in tqdm(range(0, num_samples, config.batch_size), desc="Processing batches"):
         batch_X = X[i:i + config.batch_size].to(device)
         logger.debug(f"Processing batch {i//config.batch_size + 1}, size: {batch_X.shape[0]}, shape: {batch_X.shape}")
-        
+
         batch_attributions = []
-        
         for j, input_tensor in enumerate(batch_X):
             if paper == "transynergy":
-                input_tensor = input_tensor.view(1, 3, config.cell_drug_feat_len_transynergy)
+                if input_size == expected_size:
+                    input_tensor = input_tensor.view(1, 3, config.cell_drug_feat_len_transynergy)
+                else:
+                    logger.warning(f"Input tensor size {input_size} does not match expected {expected_size}. Using flat input.")
             elif paper == "biomining":
                 input_tensor = input_tensor.view(1, config.cell_drug_feat_len_biomining)
-            
+
             logger.debug(f"Sample {i+j} input shape: {input_tensor.shape}")
-            
-            
+
             attributions = compute_integrated_gradients(
-                model,
-                input_tensor,
-                baseline,
-                config.n_steps,
-                device,
-                logger
+                model, input_tensor, baseline, config.n_steps, device, logger
             )
             batch_attributions.append(attributions.detach().cpu())
-        
+
         batch_attributions = torch.stack(batch_attributions)
-        
         all_attributions.append(batch_attributions)
-        
+
         batch_mean_attr = batch_attributions.abs().mean().item()
         batch_num = i // config.batch_size + 1
         log_dict = {
@@ -137,38 +142,33 @@ def run_integrated_gradients(
             logger.debug(f"Logged batch_attributions_histogram_{batch_num} to wandb")
         except Exception as e:
             logger.warning(f"Failed to log batch_attributions_histogram_{batch_num}: {str(e)}")
-        
-    
+        wandb.log(log_dict)
+
     all_attributions = torch.cat(all_attributions, dim=0)
-    logger.info(f"All attributions concatenated, final shape: {all_attributions.shape}, "
+    logger.info(f"All attributions shape: {all_attributions.shape}, "
                 f"mean: {all_attributions.mean().item():.4f}, "
                 f"abs mean: {all_attributions.abs().mean().item():.4f}, "
                 f"std: {all_attributions.std().item():.4f}, "
                 f"min: {all_attributions.min().item():.4f}, "
                 f"max: {all_attributions.max().item():.4f}")
-    
-    
-    save_path = f"explainability/ig/results/{paper}_integrated_gradients.pt"
+
+    save_path = f"explainability/ig/results/{paper}_integrated_gradients_{config.baseline_type}.pt"
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
-    torch.save(all_attributions, save_path)
-    
+    torch.save(all_attributions, save_path, weights_only=True)
+
     log_dict = {}
     try:
         log_dict["attributions_histogram"] = wandb.Histogram(all_attributions.numpy())
-    except Exception as e:
-        logger.error(f"Failed to log attributions_histogram: {str(e)}")
-    
-    try:
         log_dict["mean_attribution"] = all_attributions.abs().mean().item()
         log_dict["std_attribution"] = all_attributions.std().item()
         log_dict["min_attribution"] = all_attributions.min().item()
         log_dict["max_attribution"] = all_attributions.max().item()
         logger.debug("Logged attribution statistics to wandb")
     except Exception as e:
-        logger.error(f"Failed to log attribution statistics: {str(e)}")
-    
+        logger.error(f"Faild to log attribution statistics: {str(e)}")
+
     if log_dict:
         wandb.log(log_dict)
-    
-    save_with_wandb(save_path, name_of_object=f"{paper}_integrated_gradients.pt")
+
+    save_with_wandb(save_path, name_of_object=f"{paper}_integrated_gradients_{config.baseline_type}.pt")
     wandb.finish()
