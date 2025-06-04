@@ -3,10 +3,17 @@ import pandas as pd
 class DataLeakageHandler:
     """
     A class to handle data leakage issues in different folds of the TransSynergy Dataset.
+    Little info on fold column names:
+    - 'fold': General defined fold (5 folds).
+    - 'cl_fold': Cell line-specific fold - leave-cell-line-out (5 folds).
+    - 'drug_fold': Drug-specific fold - leave-drug-out (5 folds).
+    - 'new_drug_fold': Fold for new drugs - leave-drug-out. (2 folds).
+    - 'random_fold': Randomly assigned fold. (5 folds).
     """
 
     def __init__(self, dataset, current_fold):
         self.fold_col_names = ["fold", "cl_fold", "drug_fold", "new_drug_fold", "random_fold"]
+
         self.df = dataset.copy()
         self.number_of_folds = self._get_number_of_folds_in_each()
 

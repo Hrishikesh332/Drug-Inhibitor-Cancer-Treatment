@@ -117,7 +117,7 @@ def run(
     for params in current_results:
         current_results[params] = np.mean(current_results[params], axis=0)
 
-    best_params = max(current_results, key=lambda x: current_results[x])
+    best_params = min(current_results, key=lambda x: current_results[x])
     best_params = unhashable(best_params)
 
     drug_model, best_drug_model, optimizer, scheduler = setup_model_and_optimizer(
