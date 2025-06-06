@@ -6,6 +6,7 @@ from typing import Literal
 class ExplainationConfig:
     paper: Literal["biomining", "transynergy"]
     transynergy_gene_csv_path: str | None = "external\drug_combination\data\genes\genes_2401_df.csv"
+    seed: int = 42
     
     def __post_init__(self):
         if self.paper == "biomining":

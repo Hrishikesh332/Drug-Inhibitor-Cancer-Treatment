@@ -12,6 +12,7 @@ from explainability.utils import (
 from explainability.am import run_activation_maximization
 from explainability.shap import run_shap_explanation
 from explainability.anchors import run_anchors
+from explainability.lrp import run_lrp_explanation
 
 @dataclass
 class ModelAndDataConfig:
@@ -86,6 +87,30 @@ def run_explanation(model, model_name, method, X_train, Y_train, X_test, Y_test,
                     regularization = regularization,
                     maximize = maximize,
                 )
+    elif method == 'lrp':
+        for baseline in ["zero", "mean", "random", "mean_per_cell_line"]:
+                logger.info(f"Running relative LRP with baseline={baseline}")
+                run_lrp_explanation(
+                    model = model,
+                    paper = model_name,
+                    X_train = X_train,
+                    X_test = X_test,
+                    logger = logger,
+                    baseline = baseline,
+                    relative = True,
+                )
+
+        logger.info(f"Running absolute LRP")
+        run_lrp_explanation(
+                    model = model,
+                    paper = model_name,
+                    X_train = X_train,
+                    X_test = X_test,
+                    logger = logger,
+                    baseline = None,
+                    relative = False,
+                )
+
     elif method == 'integrated_gradients':
         raise NotImplementedError("Integrated gradients not yet implemented.")
     else:
@@ -103,8 +128,8 @@ def main():
                         help='Which model to explain')
     parser.add_argument('--method', 
                         type=str, 
-                        default='anchors',
-                        choices=['shap', 'anchors', 'activation_max', 'integrated_gradients'],
+                        default='lrp',
+                        choices=['shap', 'anchors', 'activation_max', 'integrated_gradients', 'lrp'],
                         help='Which explainability method to use')
 
     args = parser.parse_args()
