@@ -1,6 +1,5 @@
 import torch
 import shap
-import json
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -10,7 +9,7 @@ from dataclasses import asdict
 from typing import Literal
 import wandb
 from logging import Logger
-from explainability.shap.utils import select_representative_samples, reshape_transynergy_input
+from explainability.utils import select_representative_samples, reshape_transynergy_input
 from explainability.shap.config import SHAPExplanationConfig
 
 
