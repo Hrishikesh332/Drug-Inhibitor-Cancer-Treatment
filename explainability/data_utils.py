@@ -64,6 +64,17 @@ def load_biomining_cell_line_data(split: Literal['train', 'test'] = 'train'):
         cell_lines = handler.test_dataset.get_cell_lines()
     return  cell_lines
 
+def load_biomining_drug_names(split: Literal['train', 'test'] = 'train'):
+    """
+    Load the Biomining drug names from the specified path.
+    """
+    handler = CVDatasetHandler(data_dir='external/predicting_synergy_nn/data')
+    if split == 'train':
+        drug1, drug2 = handler.all_train_dataset.get_drug_names()
+    elif split == 'test':
+        drug1, drug2 = handler.test_dataset.get_drug_names()
+    return drug1, drug2
+
 
 def reshape_transynergy_input(X: torch.Tensor, logger, name: str) -> torch.Tensor:
     """
