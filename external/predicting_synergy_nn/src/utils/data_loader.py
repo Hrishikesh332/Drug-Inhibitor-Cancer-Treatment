@@ -87,6 +87,13 @@ class CSVTabularDataset(Dataset):
         x = x.values
         y = y.values.ravel()
         return x, y
+    
+    def get_drug_names(self) -> np.ndarray:
+        return self.df['DRUG1'], self.df['DRUG2']
+    
+    def get_cell_lines(self) -> np.ndarray:
+        return self.df['CELL_LINE'].values
+    
 
 class CVDatasetHandler:
     def __init__(self, data_dir, outer_fold=1):

@@ -6,11 +6,14 @@ from dataclasses import dataclass
 from explainability.utils import (
     load_transynergy_model,
     load_biomining_model,
+)
+from explainability.data_utils import (
     load_transynergy_data,
     load_biomining_data,
+    load_biomining_cell_line_data
 )
 from explainability.am import run_activation_maximization
-from explainability.shap import run_shap_explanation
+from explainability.shapley import run_shap_explanation
 from explainability.anchors import run_anchors
 from explainability.lrp import run_lrp_explanation
 
@@ -88,27 +91,13 @@ def run_explanation(model, model_name, method, X_train, Y_train, X_test, Y_test,
                     maximize = maximize,
                 )
     elif method == 'lrp':
-        for baseline in ["zero", "mean", "random", "mean_per_cell_line"]:
-                logger.info(f"Running relative LRP with baseline={baseline}")
-                run_lrp_explanation(
-                    model = model,
-                    paper = model_name,
-                    X_train = X_train,
-                    X_test = X_test,
-                    logger = logger,
-                    baseline = baseline,
-                    relative = True,
-                )
-
-        logger.info(f"Running absolute LRP")
+        logger.info(f"Running LRP")
         run_lrp_explanation(
                     model = model,
                     paper = model_name,
                     X_train = X_train,
                     X_test = X_test,
-                    logger = logger,
-                    baseline = None,
-                    relative = False,
+                    logger = logger
                 )
 
     elif method == 'integrated_gradients':
@@ -123,7 +112,7 @@ def main():
     
     parser.add_argument('--model', 
                         type=str, 
-                        default='transynergy',
+                        default='biomining',
                         choices=MODEL_DATA_REGISTRY.keys(),
                         help='Which model to explain')
     parser.add_argument('--method', 

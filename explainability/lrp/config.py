@@ -5,9 +5,7 @@ from explainability.explaination_config import ExplainationConfig
 
 @dataclass
 class LRPExplanationConfig(ExplainationConfig):
-    relative: bool = False
-    baseline: Optional[Literal["zero", "mean", "random", "mean_per_cell_line"]] = None
-    subsample: bool = True
+    subsample: bool = False
     num_samples: int = 1000
 
 
