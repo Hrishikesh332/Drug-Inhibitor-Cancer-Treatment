@@ -48,7 +48,7 @@ def explain_biomining(
     model: torch.nn.Module,
     inputs: torch.Tensor,
     **kwargs
-) -> Tuple[torch.Tensor, torch.Tensor]:
+) -> torch.Tensor:
     """Run LRP explanation on TransSynergy model for regression task.
     
     Args:
@@ -58,7 +58,7 @@ def explain_biomining(
         **kwargs: Additional arguments passed to create_transynergy_composite
         
     Returns:
-        Tuple of (model output, relevance scores)
+        Tuple of relevance scores
     """
     composite = Composite(
             module_map=lrp_rule_for_biomining,
