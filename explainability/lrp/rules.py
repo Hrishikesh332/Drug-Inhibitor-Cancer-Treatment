@@ -20,12 +20,10 @@ class GMontavonEpsilon(BasicHook): # taken from
             reducer=(lambda inputs, gradients: inputs[0] * gradients[0])
         )
 
-
-
 def lrp_rule_for_biomining(ctx, name, module): # inspired by https://iphome.hhi.de/samek/pdf/MonXAI19.pdf
     if isinstance(module, nn.Linear):
         if name == "net.20": # LRP-0
-            return Epsilon(epsilon=0)
+            return Epsilon(epsilon=1e-9)
         elif name == "net.16" or name == 'net.12' or name == 'net.8': # Lrp-epsilon 
             return GMontavonEpsilon(epsilon=1e-9, delta=0.25)
         elif  name == 'net.8': # Lrp-gamma
