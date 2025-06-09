@@ -55,7 +55,7 @@ def run_explanation(model, model_name, method, X_train, Y_train, X_test, Y_test,
                             paper=model_name,
                             X_train=X_train,
                             X_test=X_test,
-                            logger=logger, 
+                            logger=logger,
                             **kwargs
                         )
     elif method == 'anchors':
