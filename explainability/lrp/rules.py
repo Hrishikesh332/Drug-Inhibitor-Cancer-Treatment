@@ -1,5 +1,3 @@
-from typing import  Tuple
-
 import torch
 import torch.nn as nn
 from tqdm import tqdm 
@@ -46,16 +44,14 @@ def lrp_rule_for_biomining(ctx, name, module): # inspired by https://iphome.hhi.
         
 def explain_biomining(
     model: torch.nn.Module,
-    inputs: torch.Tensor,
-    **kwargs
+    inputs: torch.Tensor
 ) -> torch.Tensor:
-    """Run LRP explanation on TransSynergy model for regression task.
+    """Run LRP explanation on Biomining model for regression task.
     
     Args:
-        model: The TransSynergy model
+        model: The Biomining model
         inputs: Input tensor (drug features, cell line features)
         composite: Optional pre-created composite. If None, will create default one
-        **kwargs: Additional arguments passed to create_transynergy_composite
         
     Returns:
         Tuple of relevance scores
