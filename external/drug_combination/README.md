@@ -118,3 +118,13 @@ Entrezid Entrezid posterior prob.
 5988    100287366       0.100036
 5988    100287362       0.105938
 ```
+## Results - recreated
+
+The table below reports test performance for each fold after training (on fold 1,2,3) and then testing fold 4 with default parameters and evaluating on fold 0. (For cl_fold, leakage has been removed!)
+
+| Fold         | Test MSE | Pearson Correlation | Spearman Correlation |
+| ------------ | -------- | ------------------- | -------------------- |
+| random\_fold | 182      | 0.787               | 0.781                |
+| cl\_fold     | 224      | 0.734               | 0.774                |
+| drug\_fold   | 266      | 0.620               | 0.602                |
+| fold         | 231      | 0.755               | 0.711                |
