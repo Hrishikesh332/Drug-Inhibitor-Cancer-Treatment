@@ -1,10 +1,10 @@
 import os
+from typing import Tuple, Literal
+import numpy as np
 import pandas as pd
 import torch
 from torch.utils.data import DataLoader, TensorDataset, Dataset
 from sklearn.preprocessing import StandardScaler
-from typing import Tuple, Literal
-import numpy as np
 
 
 def load_data(dir_path, fold, target='ZIP', batch=100):
@@ -88,7 +88,7 @@ class CSVTabularDataset(Dataset):
         y = y.values.ravel()
         return x, y
     
-    def get_drug_names(self) -> np.ndarray:
+    def get_drug_names(self) -> tuple[pd.Series, pd.Series]:
         return self.df['DRUG1'], self.df['DRUG2']
     
     def get_cell_lines(self) -> np.ndarray:
