@@ -5,10 +5,11 @@ from tqdm import tqdm
 from zennit.core import Composite
 from zennit.rules import Epsilon, Gamma, Pass, ZBox
 from zennit.canonizers import SequentialMergeBatchNorm
-CompositeType = Composite 
 from zennit.core import BasicHook, stabilize
+CompositeType = Composite 
 
-class GMontavonEpsilon(BasicHook): # taken from 
+
+class GMontavonEpsilon(BasicHook): # taken from https://github.com/rodrigobdz/lrp/blob/2089fda5e74e1255ae062b6c8a0b281661690c75/zennit-lrp-tutorial.ipynb
     def __init__(self, epsilon=1e-6, delta=0.25):
         super().__init__(
             input_modifiers=[lambda input: input],
@@ -32,11 +33,11 @@ def lrp_rule_for_biomining(ctx, name, module): # inspired by https://iphome.hhi.
         2.1800e-06, 2.1800e-06, 1.4300e-06, 1.4300e-06, 8.5900e-08, 8.5900e-08,
         1.7200e-04, 1.7200e-04, 6.4200e-05, 6.4200e-05, 5.9700e-03, 5.9700e-03,
         3.8800e-01, 3.8800e-01, 0.0000e+00, 0.0000e+00, 0.0000e+00, 0.0000e+00,
-        0.0000e+00, 0.0000e+00, 0.0000e+00]).unsqueeze(0)
+        0.0000e+00, 0.0000e+00, 0.0000e+00]).unsqueeze(0) # minimum values for each feature (on test dataset)
             high = torch.tensor([1.0000, 1.0000, 0.9980, 0.9980, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000,
         1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000,
         1.0000, 1.0000, 1.0000, 1.0000, 0.9970, 0.9970, 1.0000, 1.0000, 1.0000,
-        1.0000, 1.0000, 1.0000, 2.0000, 1.0000, 2.0000]).unsqueeze(0)
+        1.0000, 1.0000, 1.0000, 2.0000, 1.0000, 2.0000]).unsqueeze(0) # maximum values for each feature (on test dataset)
             return ZBox(low=low, high=high)
     else:
         # activations are ignore just as https://zennit.readthedocs.io/en/0.4.4/how-to/use-rules-composites-and-canonizers.html 
