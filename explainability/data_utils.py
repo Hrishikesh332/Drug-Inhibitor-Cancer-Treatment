@@ -48,10 +48,14 @@ def load_biomining_data(split: Literal['train', 'test'] = 'train'):
     """
     handler = CVDatasetHandler(data_dir='external/predicting_synergy_nn/data')
     if split == 'train':
-        X_res, Y_res = handler.get_dataset(type='alltrain')
+        X_final, Y_final = handler.get_dataset(type='alltrain')
     elif split == 'test':
         X_res, Y_res = handler.get_dataset(type='test')
-    return X_res, Y_res
+        # add perturbation (drug_A(0-13), drug_B(13-25), cell_line(26:33)) -> (drug_B, drug_A, cell_line)
+        X_res_perturbed = np.concatenate((X_res[:, 13:26], X_res[:, 0:13], X_res[:, 26:33]), axis=1)
+        X_final = np.concatenate((X_res, X_res_perturbed), axis=0)
+        Y_final = np.concatenate((Y_res, Y_res), axis=0)
+    return X_final, Y_final
 
 def load_biomining_cell_line_data(split: Literal['train', 'test'] = 'train'):
     """
