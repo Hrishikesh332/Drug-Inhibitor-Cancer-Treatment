@@ -263,8 +263,6 @@ class SynergyDataReader(CustomDataReader):
     ### Some drugs are removed because the drug feature vectors only have zero
         if cls.drugs_filtered:
             return
-        if setting.feature_type == 'LINCS1000':
-            cls.sel_drugs = set(list(pd.read_csv(setting.L1000_upregulation, header = None, index_col=0).index))
         elif setting.feature_type == 'others':
             cls.sel_drugs = DrugTargetProfileDataLoader.get_sel_drugs_set() & set(list(pd.read_csv(
                 setting.L1000_upregulation, header = None, index_col=0).index))
@@ -573,261 +571,6 @@ class NetExpressDataLoader(CustomDataLoader):
         return result_df
 
 
-class ECFPDataLoader(CustomDataLoader):
-
-    drug_ECFP = None
-    cl_ECFP = None
-
-    def __init__(self):
-        super().__init__()
-
-    @classmethod
-    def __dataloader_initializer(cls):
-
-        if cls.drug_ECFP is None:
-            cls.drug_ECFP = pd.read_csv(setting.drug_ECFP)
-        if cls.cl_ECFP is None:
-            cls.cl_ECFP = pd.read_csv(setting.cl_ECFP, index_col=0)
-
-    @classmethod
-    def get_drug_ecfp_data(cls, save_each_data_point = setting.save_each_ecfp_phy_data_point):
-
-        if cls.drug_ECFP is None:
-            cls.__dataloader_initializer()
-        cls.drug_ECFP = cls.drug_ECFP[['Name', 'ECFP_6']]
-        cls.drug_ECFP.set_index('Name', inplace= True)
-        cls.drug_ECFP = cls.drug_ECFP['ECFP_6'].apply(lambda i: pd.Series(list(i))).astype(int)
-        cls.drug_ECFP.columns = cls.drug_ECFP.columns.astype(str)
-        #cls.ECFP = cls.ECFP.loc[:,~((cls.drug_ECFP==0).all(axis = 0))]
-        cls.drug_ECFP = cls.drug_ECFP.loc[:, cls.__get_ecfp_filter(drug_filter_only=setting.ecfp_phy_drug_filter_only)]
-        if save_each_data_point:
-            if not path.exists("ecfp_datas"):
-                mkdir("ecfp_datas")
-            for i, one_drug_ecfp in enumerate(cls.drug_ECFP.values):
-                save(one_drug_ecfp, path.join("ecfp_datas", cls.drug_ECFP.index[i] + '.pt'))
-        return cls.drug_ECFP
-
-    @classmethod
-    def get_cl_ecfp_data(cls):
-
-        if cls.cl_ECFP is None:
-            cls.__dataloader_initializer()
-        cls.cl_ECFP = cls.cl_ECFP.loc[:, cls.__get_ecfp_filter()]
-        return cls.cl_ECFP
-
-    @classmethod
-    def __get_ecfp_filter(cls, drug_filter_only = False):
-
-        if cls.cl_ECFP is None or cls.drug_ECFP is None:
-            cls.__dataloader_initializer()
-        drug_filter = (~((cls.drug_ECFP==0).all(axis = 0)))
-        cl_filter = (~((cls.cl_ECFP==0).all(axis = 0)))
-        common_filter = (drug_filter & cl_filter)
-        if drug_filter_only:
-            return drug_filter
-        return common_filter
-
-class PhysicochemDataLoader(CustomDataLoader):
-
-    drug_physicochem = None
-    cl_physicochem = None
-
-    def __init__(self):
-        super().__init__()
-
-    @classmethod
-    def __dataloader_initializer(cls):
-
-        if cls.drug_physicochem is None:
-            cls.drug_physicochem = pd.read_csv(setting.drug_physicochem, index_col=0)
-        if cls.cl_physicochem is None:
-            cls.cl_physicochem = pd.read_csv(setting.cl_physicochem, index_col = 0)
-
-    @classmethod
-    def get_drug_physicochem_property(cls, save_each_data_point = setting.save_each_ecfp_phy_data_point):
-
-        if cls.drug_physicochem is None:
-            cls.__dataloader_initializer()
-        cls.drug_physicochem.drop('SMILE', inplace=True, axis=1)
-        #cls.physicochem = cls.physicochem.loc[:, ~((cls.physicochem == 0).all(axis=0))]
-        cls.drug_physicochem = cls.drug_physicochem.loc[:, cls.__get_physicochem_filter(drug_filter_only=setting.ecfp_phy_drug_filter_only)]
-        physicochem_scaler = StandardScaler(with_mean=False)
-        physicochem = physicochem_scaler.fit_transform(cls.drug_physicochem)
-        physicochem = pd.DataFrame(physicochem, index=cls.drug_physicochem.index, columns=cls.drug_physicochem.columns)
-        cls.drug_physicochem = physicochem
-        if save_each_data_point:
-            if not path.exists("phy_datas"):
-                mkdir("phy_datas")
-            for i, one_drug_phy in enumerate(cls.drug_physicochem.values):
-                save(one_drug_phy, path.join("phy_datas", cls.drug_physicochem.index[i] + '.pt'))
-        return cls.drug_physicochem
-
-    @classmethod
-    def get_cl_physiochem_property(cls):
-
-        if cls.cl_physicochem is None:
-            cls.__dataloader_initializer()
-        cls.cl_physicochem = cls.cl_physicochem.loc[:, cls.__get_physicochem_filter()]
-        return cls.cl_physicochem
-
-    @classmethod
-    def __get_physicochem_filter(cls, drug_filter_only = False):
-
-        if cls.drug_physicochem is None or cls.cl_physicochem is None:
-            cls.__dataloader_initializer()
-        drug_filter = ~((cls.drug_physicochem == 0).all(axis=0))
-        cl_filter = ~((cls.cl_physicochem == 0).all(axis=0))
-        common_filter = drug_filter | cl_filter
-        if drug_filter_only:
-            return drug_filter
-        return common_filter
-
-class SingleResponseDataLoader(CustomDataLoader):
-
-    single_response = None
-
-    def __init__(self):
-        super().__init__()
-
-    @classmethod
-    def __dataloader_initializer(cls):
-
-        if cls.single_response is None:
-            cls.single_response = pd.read_csv(setting.single_response, index_col=0).drop(['mean', 'sigma'], axis=1)
-            cls.single_response['drug'] = cls.single_response['drug'].str.upper()
-            cls.single_response.set_index(['cell_line', 'drug'], inplace = True)
-
-    @classmethod
-    def get_single_response(cls, save_each_data_point = setting.save_each_ecfp_phy_data_point):
-
-        if cls.single_response is None:
-            cls.__dataloader_initializer()
-        if save_each_data_point:
-            if not path.exists("single_datas"):
-                mkdir("single_datas")
-            for i, one_drug_single in enumerate(cls.single_response.values):
-                save(one_drug_single, path.join("single_datas", "_".join(cls.single_response.index[i]) + '.pt'))
-        return cls.single_response
-
-class ProteomicsDataLoader(CustomDataLoader):
-
-    proteomics = None
-
-    def __init__(self):
-        super().__init__()
-
-    @classmethod
-    def __dataloader_initializer(cls):
-
-        if cls.proteomics is None:
-            cls.proteomics = pd.read_csv(setting.ccle_pro, index_col=0)
-
-    @classmethod
-    def get_proteomics(cls, save_each_data_point = setting.save_each_ecfp_phy_data_point):
-
-        if cls.proteomics is None:
-            cls.__dataloader_initializer()
-        if save_each_data_point:
-            if not path.exists("proteomics_datas"):
-                mkdir("proteomics_datas")
-            for i, one_cl_pro in enumerate(cls.proteomics.values):
-                save(one_cl_pro, path.join("proteomics_datas", cls.proteomics.index[i]) + '.pt')
-        return cls.proteomics
-
-class RepresentationSamplesDataLoader(CustomDataLoader):
-
-    L1000_upregulation = None
-    F_cl = None
-    synergy_score = None
-    data_initialized = False
-    drug_a_features = None
-    drug_b_features = None
-    cellline_features = None
-    whole_df = None
-
-    def __init__(self):
-        super.__init__()
-
-    @classmethod
-    def __dataloader_initializer(cls):
-
-        if cls.data_initialized:
-            return
-
-        ######################
-        ### 5-FU ....
-        #####################
-        cls.L1000_downregulation = pd.read_csv(setting.L1000_upregulation, header = None, index_col = 0)
-
-        ######################
-        ### A2058 ......
-        #####################
-        cls.F_cl = pd.read_csv(setting.F_cl, header = None, index_col = 0)
-
-        ### Reading synergy score data ###
-        ### Unnamed: 0,drug_a_name,drug_b_name,cell_line,synergy
-        ### 5-FU_ABT-888_A2058,5-FU,ABT-888,A2058,7.6935301658
-        ### 5-FU_ABT-888_A2780,5-FU,ABT-888,A2780,7.7780530601
-        cls.synergy_score = SynergyDataReader.get_synergy_score()
-        cls.data_initialized = True
-
-    @classmethod
-    def __features_prep(cls):
-
-        ### generate drugs features
-        if cls.drug_a_features is None or cls.drug_b_features is None or cls.cellline_features is None:
-            cls.__dataloader_initializer()
-            cls.drug_a_features = cls.L1000_upregulation.loc[list(cls.synergy_score['drug_a_name']), :].reset_index(drop=True)
-            #cls.drug_a_features.fillna(0, inplace=True)
-            cls.drug_b_features = cls.L1000_upregulation.loc[list(cls.synergy_score['drug_b_name']), :].reset_index(drop=True)
-            #cls.drug_b_features.fillna(0, inplace=True)
-            cls.cellline_features = cls.F_cl.loc[list(cls.synergy_score['cell_line']), :].reset_index(drop=True)
-            #cls.cellline_features.fillna(0, inplace=True)
-        return [cls.drug_a_features, cls.drug_b_features, cls.cellline_features]
-
-    @classmethod
-    def __construct_whole_raw_X(cls):
-
-        ### return dataframe
-        ###  first_half_drugs_features                first_half_cellline_features
-        ###  switched_second_half_drugs_features      second_half_cellline_features
-        if cls.whole_df is None:
-            features_list = cls.__features_prep()
-            first_half = pd.concat(features_list, axis=1)
-            second_half = pd.concat([features_list[1], features_list[0], features_list[2]], axis=1)
-            cls.whole_df = pd.concat([first_half, second_half], axis=0).reset_index(drop=True)
-        return cls.whole_df
-
-    @classmethod
-    def Raw_X_features_prep(cls, methods):
-
-        ### Generate final raw features dataset
-        ### return: ndarray (n_samples, n_type_features, feature_dim) if 'attn'
-        ###         ndarray (n_samples, n_type_features * feature_dim) else
-        raw_x = cls.__construct_whole_raw_X().values
-        if methods == 'attn':
-            x = raw_x.reshape(-1, 3, setting.F_repr_feature_length)
-
-        else:
-            drug_features_len = int(1 / setting.n_feature_type * raw_x.shape[1])
-            cl_features_len = int(raw_x.shape[1] - 2 * drug_features_len)
-            assert cl_features_len == int((1 - 2 / setting.n_feature_type) * raw_x.shape[1]), \
-                "features len are calculated in wrong way"
-            var_filter = raw_x.var(axis=0) > 0
-            x = raw_x[:, var_filter]
-
-        return x
-
-    @classmethod
-    def Y_features_prep(cls):
-
-        ### Generate final y features in ndarray (-1, 1)
-        cls.__dataloader_initializer()
-        Y_labels = cls.synergy_score.loc[:, 'synergy']
-        Y_half = Y_labels.values.reshape(-1, 1)
-        Y = np.concatenate((Y_half, Y_half), axis=0)
-        return Y
-
 class SamplesDataLoader(CustomDataLoader):
 
     entrez_set = None
@@ -879,7 +622,7 @@ class SamplesDataLoader(CustomDataLoader):
         ### BORTEZOMIB         1        1        1        1           0            1
         ### CARBOPLATIN        0        0        0        0           1            0
         if 'drug_target_profile' in setting.drug_features:
-            cls.simulated_drug_target = DrugTargetProfileDataLoader.get_filtered_simulated_drug_target_matrix()
+            cls.ysimulated_drug_target = DrugTargetProfileDataLoader.get_filtered_simulated_drug_target_matrix()
 
         ### Reading synergy score data ###
         ### Unnamed: 0,drug_a_name,drug_b_name,cell_line,synergy
@@ -914,11 +657,6 @@ class SamplesDataLoader(CustomDataLoader):
         ######################
         ### 5-FU ....
         #####################
-        if 'L1000_upregulation' in setting.drug_features:
-            cls.L1000_upregulation = pd.read_csv(setting.L1000_upregulation, header = None, index_col = 0)
-        if 'L1000_downregulation' in setting.drug_features:
-            cls.L1000_downregulation = pd.read_csv(setting.L1000_downregulation, header = None, index_col = 0)
-
         if 'combine_drugs_for_cl' in setting.cellline_features:
 
             cls.combine_drug_multi_gene_express = \
@@ -945,51 +683,34 @@ class SamplesDataLoader(CustomDataLoader):
             cls.drug_a_features = []
             cls.drug_b_features = []
 
-            if 'drug_target_profile' in setting.drug_features:
+            if 'drug_target_profile' not in setting.drug_features:
+                raise ValueError("No other drug features apart from target profile are supported!")
 
-                drug_a_target_feature = cls.simulated_drug_target.loc[list(cls.synergy_score['drug_a_name']), :]
-                drug_a_target_feature = pd.DataFrame(drug_a_target_feature, columns=list(cls.entrez_set)).reset_index(drop=True)
-                if setting.add_single_response_to_drug_target:
+            drug_a_target_feature = cls.simulated_drug_target.loc[list(cls.synergy_score['drug_a_name']), :]
+            drug_a_target_feature = pd.DataFrame(drug_a_target_feature, columns=list(cls.entrez_set)).reset_index(drop=True)
+            if setting.add_single_response_to_drug_target:
 
-                    # drug_a_single_response = cls.single_drug_response.loc[list(cls.synergy_score['drug_a_name']), :]
+                drug_a_single_response = cls.single_drug_response.merge(cls.synergy_score,
+                                                                        left_on = ['drug', 'cell_line'],
+                                                                        right_on = ['drug_a_name', 'cell_line'])['pIC50'].values
+                assert len(drug_a_single_response) == len(drug_a_target_feature), "single repsonse data didn't have same length with drug feature"
+                drug_a_target_feature['pIC50'] = drug_a_single_response
+            # single response feature added to drug target feature !!!!!!!!!!!!!!!!!!!
+            drug_a_target_feature.fillna(0, inplace=True)
+            cls.drug_a_features.append(drug_a_target_feature.values)
+            cls.drug_features_lengths.append(drug_a_target_feature.shape[1])
+            drug_b_target_feature = cls.simulated_drug_target.loc[list(cls.synergy_score['drug_b_name']), :]
+            drug_b_target_feature = pd.DataFrame(drug_b_target_feature, columns=list(cls.entrez_set)).reset_index(drop=True)
+            if setting.add_single_response_to_drug_target:
+                # drug_b_single_response = cls.single_drug_response.loc[list(cls.synergy_score['drug_b_name']), :]
+                drug_b_single_response = cls.single_drug_response.merge(cls.synergy_score,
+                                                                        left_on = ['drug', 'cell_line'],
+                                                                        right_on = ['drug_b_name', 'cell_line'])['pIC50'].values
+                assert len(drug_b_single_response) == len(drug_b_target_feature), "single repsonse data didn't have same length with drug feature"
 
-                    drug_a_single_response = cls.single_drug_response.merge(cls.synergy_score,
-                                                                            left_on = ['drug', 'cell_line'],
-                                                                            right_on = ['drug_a_name', 'cell_line'])['pIC50'].values
-                    assert len(drug_a_single_response) == len(drug_a_target_feature), "single repsonse data didn't have same length with drug feature"
-                    drug_a_target_feature['pIC50'] = drug_a_single_response
-                # single response feature added to drug target feature !!!!!!!!!!!!!!!!!!!
-                drug_a_target_feature.fillna(0, inplace=True)
-                cls.drug_a_features.append(drug_a_target_feature.values)
-                cls.drug_features_lengths.append(drug_a_target_feature.shape[1])
-                drug_b_target_feature = cls.simulated_drug_target.loc[list(cls.synergy_score['drug_b_name']), :]
-                drug_b_target_feature = pd.DataFrame(drug_b_target_feature, columns=list(cls.entrez_set)).reset_index(drop=True)
-                if setting.add_single_response_to_drug_target:
-                    # drug_b_single_response = cls.single_drug_response.loc[list(cls.synergy_score['drug_b_name']), :]
-                    drug_b_single_response = cls.single_drug_response.merge(cls.synergy_score,
-                                                                            left_on = ['drug', 'cell_line'],
-                                                                            right_on = ['drug_b_name', 'cell_line'])['pIC50'].values
-                    assert len(drug_b_single_response) == len(drug_b_target_feature), "single repsonse data didn't have same length with drug feature"
-
-                    drug_b_target_feature['pIC50'] = drug_b_single_response
-                drug_b_target_feature.fillna(0, inplace=True)
-                cls.drug_b_features.append(drug_b_target_feature.values)
-
-            if 'L1000_upregulation' in setting.drug_features:
-
-                drug_a_F_feature = cls.L1000_upregulation.loc[list(cls.synergy_score['drug_a_name']), :]
-                cls.drug_a_features.append(drug_a_F_feature.values)
-                cls.drug_features_lengths.append(drug_a_F_feature.shape[1])
-                drug_b_F_feature = cls.L1000_upregulation.loc[list(cls.synergy_score['drug_b_name']), :]
-                cls.drug_b_features.append(drug_b_F_feature.values)
-
-            if 'L1000_downregulation' in setting.drug_features:
-
-                drug_a_F_feature_2 = cls.L1000_downregulation.loc[list(cls.synergy_score['drug_a_name']), :]
-                cls.drug_a_features.append(drug_a_F_feature_2.values)
-                cls.drug_features_lengths.append(drug_a_F_feature_2.shape[1])
-                drug_b_F_feature_2 = cls.L1000_downregulation.loc[list(cls.synergy_score['drug_b_name']), :]
-                cls.drug_b_features.append(drug_b_F_feature_2.values)
+                drug_b_target_feature['pIC50'] = drug_b_single_response
+            drug_b_target_feature.fillna(0, inplace=True)
+            cls.drug_b_features.append(drug_b_target_feature.values)
 
         return [cls.drug_a_features, cls.drug_b_features]
 
@@ -1067,7 +788,6 @@ class SamplesDataLoader(CustomDataLoader):
         ### return: ndarray (n_samples, n_type_features, feature_dim) if 'attn'
         ###         ndarray (n_samples, n_type_features * feature_dim) else
         raw_x = cls.__construct_whole_raw_X()
-        entrez_array = np.array(list(cls.entrez_set))
         expanded_entrez = np.array(list(cls.entrez_set) + [np.nan])
         if methods == 'attn':
             x = raw_x.reshape(-1, setting.n_feature_type, len(cls.entrez_set))
