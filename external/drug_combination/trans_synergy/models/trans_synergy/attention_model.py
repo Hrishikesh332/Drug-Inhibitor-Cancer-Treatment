@@ -308,7 +308,7 @@ class TransposeMultiTransformersPlusLinear(TransposeMultiTransformers):
         input_trg_list = src_list[::]
         output_list = super().forward(input_src_list, input_trg_list, low_dim=low_dim)
 
-        if drugs is not None and self.drugs_on_the_side:
+        if drugs is not None and self.drugs_on_the_side: # NOTE: drugs is by default None!
             sub_drugs_a, sub_drugs_b = drugs[0], drugs[1]
             drug_a_embed = self.drug_fp_a(sub_drugs_a)
             drug_b_embed = self.drug_fp_b(sub_drugs_b)
