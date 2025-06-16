@@ -44,7 +44,7 @@ def biomining_explain_with_conservation(model, inputs):
     model.eval()
     conservation_violations = []
     for i in tqdm(range(inputs.shape[0]), desc="LRP samples"):
-        inp = inputs[i:i+1].clone().detach().requires_grad_(True)
+        inp = inputs[i].unsqueeze(0).clone().detach().requires_grad_(True)
         
         checkers = {}
         # attach checker to ever layer
@@ -85,5 +85,5 @@ if __name__ == "__main__":
     # Example usage
     model = load_biomining_model("external/predicting_synergy_nn/outputs/models/best_f1.pt")  # Load your model here
     X, Y = load_biomining_data(split='test')
-    sample = torch.tensor(X[0,:],  dtype=torch.float32).unsqueeze(0)
+    sample = torch.tensor(X[0:5,:],  dtype=torch.float32)
     violations = biomining_explain_with_conservation(model, sample)
