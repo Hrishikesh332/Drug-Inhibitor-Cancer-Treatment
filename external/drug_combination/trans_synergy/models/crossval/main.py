@@ -112,6 +112,8 @@ def run(
                 fold_col_name=fold_col_name,
             )
             current_results[hashable_params].append(results["mse"])
+            logger.info(f"Test MSE: {results['mse']:.4f}, Pearson: {results['pearson']:.4f}, Spearman: {results['spearman']:.4f}")
+            wandb.log({"Test MSE": results['mse'], "Test Pearson": results['pearson'], "Test Spearman": results['spearman']})
             wandb.finish()
 
     for params in current_results:
@@ -150,6 +152,7 @@ def run(
         save_model=True,
         testing=True,
         patience=100,
-        fold_col_name=fold_col_name,
+        fold_col_name=fold_col_name
     )
+    wandb.log({"Test MSE": results['mse'], "Test Pearson": results['pearson'], "Test Spearman": results['spearman']})
     wandb.finish()

@@ -180,8 +180,6 @@ def train_model_and_eval(
     if save_model:
         save_model(best_model, setting.run_dir, eval_idx)
 
-    if use_wandb:
-        wandb.finish()
 
     return results
 
