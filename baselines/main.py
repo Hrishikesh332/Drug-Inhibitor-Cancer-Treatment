@@ -26,7 +26,7 @@ def run_transynergy(timeout=120, n_iter=15, models: list[str] | None = None):
 
     split_func = (
         DataPreprocessorTranSynergy.regular_train_eval_test_split
-    )  # only this needs to be changed to do full crossval
+    )
     fold_idx = 0
     partition = split_func(fold_col_name="fold", test_fold=4, evaluation_fold=0)
     partition_indices = {

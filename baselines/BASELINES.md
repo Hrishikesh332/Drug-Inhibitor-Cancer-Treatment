@@ -1,22 +1,4 @@
-# Baseline results 
-Baselines are run against a stable validation set in **TranSynergy** (since we have a validation set — the same train, validation, and test sets as in the original code) and via inner cross-validation in **BioMining** (on outer fold 1).
-
-## Process Overview 
-We iterate over the parameter grid defined in the ```get_model``` method in ```baselines/traditional_ml.py```. A maximum of 15 iterations over combinations in the parameter grid is performed, with a timeout option of 60s, which means that in order for results to be valid, the model should fit the data in under a minute. 
-
-To replicate baseline results, you need to install both `drug_combination` and `predicting_synergy_nn` projects, and run `pip install -r baselines/requirements.txt`. Then, run one of the following commands:
-```
-python -m baselines.main --mode transynergy --n_iter 15 --timeout 60
-```
-```
-python -m baselines.main --mode biomining --n_iter 15 --timeout 60
-```
-
-If you want to only train one type of model, add the `--model` flag. Example:
-```
--m baselines.main --mode transynergy --n_iter 100 --timeout 600 --model catboost
-```
-## Results
+# Baseline Results 
 
 | Paper       | Model Name    |   Test Score |   Test Pearson Correlation |   Test Spearman Correlation | Test Params                                                                                                     |
 |:------------|:--------------|-------------:|---------------------------:|----------------------------:|:----------------------------------------------------------------------------------------------------------------|

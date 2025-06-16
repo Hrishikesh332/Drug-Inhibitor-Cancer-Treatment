@@ -3,11 +3,14 @@ from os import mkdir, path
 
 import numpy as np
 import pandas as pd
-import trans_synergy.settings
+from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from torch import save
 from torch.utils import data
+
+import trans_synergy.settings
 from trans_synergy.data import network_propagation
+from trans_synergy.data.data_leackage_handler import DataLeakageHandler
 
 setting = trans_synergy.settings.get()
 
@@ -1148,54 +1151,71 @@ class DataPreprocessor:
         if cls.synergy_score is None:
             cls.synergy_score = SynergyDataReader.get_synergy_score()
 
+
     @classmethod
     def regular_train_eval_test_split(cls, test_fold: int, evaluation_fold: int, fold_col_name = 'fold') -> tuple[np.array, np.array, np.array, np.array, np.array]:
         # lazy load
         if cls.synergy_score is None:
             cls.synergy_score = SynergyDataReader.get_synergy_score()
         # collect
-        test_index = np.array(cls.synergy_score[cls.synergy_score[fold_col_name] == test_fold].index)
-        evaluation_index = np.array(cls.synergy_score[cls.synergy_score[fold_col_name] == evaluation_fold].index)
-        train_index = np.array(cls.synergy_score[(cls.synergy_score[fold_col_name] != test_fold) &
-                                                 (cls.synergy_score[fold_col_name] != evaluation_fold)].index)
 
-        # account for duplicating
+        data_leakage_handler = DataLeakageHandler(cls.synergy_score, fold_col_name)
+        synergy_score_cleaned = data_leakage_handler.remove_leakage_from_test_val_only(test_fold_idx = test_fold, val_fold_idx = evaluation_fold)
+        
+        test_index = np.array(synergy_score_cleaned[synergy_score_cleaned[fold_col_name] == test_fold].index)
+        evaluation_index = np.array(synergy_score_cleaned[synergy_score_cleaned[fold_col_name] == evaluation_fold].index)
+        train_index = np.array(synergy_score_cleaned[(synergy_score_cleaned[fold_col_name] != test_fold) &
+                                                 (synergy_score_cleaned[fold_col_name] != evaluation_fold)].index)
+
         num_rows = cls.synergy_score.shape[0]
         train_index = np.concatenate([train_index, train_index + num_rows])
         evaluation_index_2 = evaluation_index + num_rows
         test_index_2 = test_index + num_rows
-        # if only testing
+
         if setting.unit_test:
             train_index, test_index, test_index_2, evaluation_index, evaluation_index_2 = \
                 train_index[:100], test_index[:100], test_index_2[:100], evaluation_index[:100], evaluation_index_2[:100]
 
         return train_index, test_index, test_index_2, evaluation_index, evaluation_index_2
 
+
     @classmethod
-    def cv_train_eval_test_split_generator(cls, fold='fold', test_fold=0):
-        """LEGACY! Only used in DeepSynergy"""
+    def cv_train_eval_test_split_generator(cls, fold='fold', test_fold: int = 0):
         if cls.synergy_score is None:
             cls.synergy_score = SynergyDataReader.get_synergy_score()
+            
+        data_leakage_handler = DataLeakageHandler(cls.synergy_score, fold)
+        synergy_score_cleaned = data_leakage_handler.remove_all_leakage()
+        num_crosseval_folds = data_leakage_handler.number_of_folds_in_current_fold
 
-        for evaluation_fold in range(5):
+        for evaluation_fold in range(num_crosseval_folds):
             if evaluation_fold == test_fold:
                 continue  # don't use test fold as evaluation fold
 
-            test_index = np.array(cls.synergy_score[cls.synergy_score[fold] == test_fold].index)
-            evaluation_index = np.array(cls.synergy_score[cls.synergy_score[fold] == evaluation_fold].index)
-            train_index = np.array(cls.synergy_score[(cls.synergy_score[fold] != test_fold) &
-                                                    (cls.synergy_score[fold] != evaluation_fold)].index)
+            # we do not use the "real" test fold only the eval fold!
+            test_index = np.array(synergy_score_cleaned[cls.synergy_score[fold] == evaluation_fold].index)
 
-            # include both forward and reverse pairs
+            candidate_index = np.array(synergy_score_cleaned[
+                (synergy_score_cleaned[fold] != test_fold) &
+                (synergy_score_cleaned[fold] != evaluation_fold)
+            ].index)
+
+            train_index, evaluation_index = train_test_split(
+                candidate_index,
+                test_size=0.2,
+                random_state=42,
+                shuffle=True
+            )
+            # accounts for permutation of drugs
             train_index = np.concatenate([train_index + cls.synergy_score.shape[0], train_index])
-            evaluation_index_2 = evaluation_index + cls.synergy_score.shape[0]
-            test_index_2 = test_index + cls.synergy_score.shape[0]
+            evaluation_index_doubled = evaluation_index + cls.synergy_score.shape[0]
+            test_index_doubled = test_index + cls.synergy_score.shape[0]
 
             if setting.unit_test:
                 train_index, test_index, test_index_2, evaluation_index, evaluation_index_2 = \
                     train_index[:100], test_index[:100], test_index_2[:100], evaluation_index[:100], evaluation_index_2[:100]
 
-            yield train_index, test_index, test_index_2, evaluation_index, evaluation_index_2
+            yield train_index, test_index, test_index_doubled, evaluation_index, evaluation_index_doubled
 
 
 class TransSynergyDataset(data.Dataset):
@@ -1226,7 +1246,6 @@ class TransSynergyDataset(data.Dataset):
     def _load_synergy_score(self):
         """Load synergy score data if it's not already loaded."""
         if TransSynergyDataset.synergy_score is None:
-            print('Preparing synergy score...')
             TransSynergyDataset.synergy_score = SynergyDataReader.get_synergy_score()
             synergy_score_reverse = TransSynergyDataset.synergy_score.copy()
             synergy_score_reverse['drug_a_name'] = TransSynergyDataset.synergy_score['drug_b_name']
@@ -1237,7 +1256,6 @@ class TransSynergyDataset(data.Dataset):
     def _load_drug_smiles(self):
         """Load drug smile data if it's not already loaded."""
         if TransSynergyDataset.drug_smile is None:
-            print('Preparing drug smiles...')
             name_smile_df = pd.read_csv(setting.inchi_merck)
             TransSynergyDataset.drug_smile = {name: smile for name, smile in zip(name_smile_df['Name'], name_smile_df['SMILE'])}
 

@@ -1,82 +1,4 @@
-# Motivation
-
-In many patients, a tumor’s innate or acquired resistance to a given therapy will render the treatment ineffective. To increase therapeutic options and to overcome drug resistance, cancer researchers have been actively investigating drug combinations.
-The repository was originally set up for two gpu cards, however we made it so that only one cuda device or none is allowed.
-
-## Rerun & weights
-Please visit our [rerun report](https://api.wandb.ai/links/ninazukowska/4obpz9bl).
-And access [drive](https://drive.google.com/file/d/1wZ-1KFirBBdy1egMXxBB7Sgx0uQm6Jue/view?usp=sharing) in order to access the mdoel weights from our rerun.
-
-## Build environment (dependencies)
-
-### 1. Create environment
-```bash
-conda create -yn trans_synergy python=3.11
-```
-### 2. Activate environment
-```bash
-conda activate trans_synergy
-```
-### 3. Install PyTorch
-Based on your environment, install a compatible PyTorch version: [PyTorch Get Started](https://pytorch.org/get-started/locally/). 
-Visit the official PyTorch page for previous versions:  
-[PyTorch Previous Versions](https://pytorch.org/get-started/previous-versions/)<br>
-If you use CUDA, you can run the following command to check your installed CUDA version:
-```bash
-nvidia-smi      
-```
-Example Setup for CUDA 12.4:
-```bash
-conda install pytorch==2.4.1 pytorch-cuda=12.4 -c pytorch -c nvidia 
-```
-Example Setup for CPU-only:
-```bash
-conda install pytorch==2.4.1 cpuonly -c pytorch
-```
-
-### 4. Install package
-```bash
-pip install -e .
-```
-
-## Dataset
-
-### Download LFS files
-
-Files under `./data` are managed using [Git Large File Storage (Git LFS)](https://git-lfs.github.com/). 
-Follow the instructions below to fetch the LFS data:
-
-1. **Install Git LFS**  
-   Follow the instructions at: https://git-lfs.github.com/
-
-2. **Initialize Git LFS (run once per system)**  
-   ```bash
-   git lfs install
-    ```
-3. **Pull files**
-   ```bash
-   git lfs pull
-    ```
-
-### Download processed synergy score files
-```bash
-zenodo_get 10.5281/zenodo.4789936 -o ./data/synergy_score
-```
-
-## Check model performance with 
-
-
-## Run training
-You can choose between the following cell line features (gene dependencies, gene expression and netexpress scores. Run one of the commands below from the repo root.
-```bash
-python main.py --settings_choice='gene_dependency'
-```
-```bash
-python main.py --settings_choice='gene_expression'
-```
-```bash
-python main.py --settings_choice='netexpress'
-```
+## RESULT
 
 #### Check results
 check the logfile in the newest ```_run_*****``` folder
@@ -118,3 +40,13 @@ Entrezid Entrezid posterior prob.
 5988    100287366       0.100036
 5988    100287362       0.105938
 ```
+## Results - recreated
+
+The table below reports test performance for each fold after training (on fold 1,2,3) and then testing fold 4 with default parameters and evaluating on fold 0. (For cl_fold, leakage has been removed!)
+
+| Fold         | Test MSE | Pearson Correlation | Spearman Correlation |
+| ------------ | -------- | ------------------- | -------------------- |
+| random\_fold | 182      | 0.787               | 0.781                |
+| cl\_fold     | 224      | 0.734               | 0.774                |
+| drug\_fold   | 266      | 0.620               | 0.602                |
+| fold         | 231      | 0.755               | 0.711                |
