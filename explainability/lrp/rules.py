@@ -3,8 +3,8 @@ import torch.nn as nn
 from tqdm import tqdm 
 
 from zennit.core import Composite
-from zennit.rules import Epsilon, Gamma, Pass, ZBox
-from zennit.canonizers import SequentialMergeBatchNorm
+from zennit.rules import Epsilon, Gamma, Pass, ZBox, ReLUGuidedBackprop
+from zennit.canonizers import NamedMergeBatchNorm
 from zennit.core import BasicHook, stabilize
 CompositeType = Composite 
 
@@ -25,7 +25,7 @@ def lrp_rule_for_biomining(ctx, name, module): # inspired by https://iphome.hhi.
             return Epsilon(epsilon=0)
         elif name == "net.16" or name == 'net.12' or name == 'net.8': # Lrp-epsilon 
             return GMontavonEpsilon(epsilon=1e-9, delta=0.25)
-        elif  name == 'net.8': # Lrp-gamma
+        elif  name == 'net.4': # Lrp-gamma
             return Gamma()
         elif name == "net.0": # a bit unsure about this one https://github.com/rodrigobdz/lrp/blob/2089fda5e74e1255ae062b6c8a0b281661690c75/zennit-lrp-tutorial.ipynb
             low = torch.tensor([8.2900e-06, 8.2900e-06, 2.5200e-03, 2.5200e-03, 2.3800e-04, 2.3800e-04,
@@ -39,9 +39,11 @@ def lrp_rule_for_biomining(ctx, name, module): # inspired by https://iphome.hhi.
         1.0000, 1.0000, 1.0000, 1.0000, 0.9970, 0.9970, 1.0000, 1.0000, 1.0000,
         1.0000, 1.0000, 1.0000, 2.0000, 1.0000, 2.0000]).unsqueeze(0) # maximum values for each feature (on test dataset)
             return ZBox(low=low, high=high)
-    else:
+    elif isinstance(module, nn.BatchNorm1d) or isinstance(module, nn.Tanh) or isinstance(module, nn.Dropout) or isinstance(module, nn.ReLU):  # for all other layers, e.g. BatchNorm1d
         # activations are ignore just as https://zennit.readthedocs.io/en/0.4.4/how-to/use-rules-composites-and-canonizers.html 
-        Pass()
+        return Pass()
+    else:
+        pass
         
 def explain_biomining(
     model: torch.nn.Module,
@@ -58,8 +60,13 @@ def explain_biomining(
         Tuple of relevance scores
     """
     composite = Composite(
-            module_map=lrp_rule_for_biomining,
-            canonizers=[SequentialMergeBatchNorm()]
+            Composite(module_map=lrp_rule_for_biomining,
+                          canonizers=[NamedMergeBatchNorm([(['net.0'], 'net.1'),
+                                                            (['net.4'], 'net.5'),
+                                                            (['net.8'], 'net.9'),
+                                                            (['net.12'], 'net.13'),
+                                                            (['net.16'], 'net.17')])]
+                          )
         )
 
     model.eval()

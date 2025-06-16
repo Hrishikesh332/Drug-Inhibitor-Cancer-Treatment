@@ -9,8 +9,7 @@ from explainability.utils import (
 )
 from explainability.data_utils import (
     load_transynergy_data,
-    load_biomining_data,
-    load_biomining_cell_line_data
+    load_biomining_data
 )
 from explainability.am import run_activation_maximization
 from explainability.shapley import run_shap_explanation
