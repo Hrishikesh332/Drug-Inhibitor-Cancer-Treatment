@@ -19,11 +19,15 @@ class Settings:
     """
     # Configurable values
     synergy_score: str
-    cellline_features: tuple # ['gene_dependence', 'netexpress','gene_expression', 'cl_F_repr', 'cl_ECFP', 'cl_drug_physiochemistry', 'combine_drugs_for_cl']
+    cellline_features: str # ['gene_dependence', 'netexpress','gene_expression', 'cl_F_repr', 'cl_ECFP', 'cl_drug_physiochemistry', 'combine_drugs_for_cl']
     gene_expression: str
     backup_expression: str
     netexpress_df: str
     n_epochs: int = 800
+
+    final_x_parquet_path: Path = _DATA_DIR / "final_X.parquet"
+    final_y_npy_path: Path = _DATA_DIR / "final_y.npy"
+    final_feature_lens_json_path: Path = _DATA_DIR / "final_feature_lens.json"
 
     unit_test = False
 
@@ -51,10 +55,6 @@ class Settings:
 
     update_final_index = True
     final_index = os.path.join(_DATA_DIR, "synergy_score/final_index.csv")
-    update_xy = True
-    old_x = os.path.join(_DATA_DIR, "synergy_score/x.npy")
-    old_x_lengths = os.path.join(_DATA_DIR, "synergy_score/old_x_lengths.pkl")
-    old_y = os.path.join(_DATA_DIR, "synergy_score/y.pkl")
 
     y_labels_file = os.path.join(_DATA_DIR, 'y_labels', 'y_labels.p')
     ### ecfp, phy, ge, gd
@@ -171,7 +171,7 @@ class Settings:
 
 gene_dependency_setting = Settings(
     synergy_score=os.path.join(_DATA_DIR, 'synergy_score', 'synergy_score.csv'),
-    cellline_features=('gene_dependence',),
+    cellline_features='gene_dependence',
     n_epochs=800,
     gene_expression="gene_expression_raw/normalized_gene_expession_35.tsv",
     backup_expression = "gene_expression_raw/normalized_gene_expession_35.tsv",
@@ -180,7 +180,7 @@ gene_dependency_setting = Settings(
 
 gene_expression_setting = Settings(
     synergy_score=os.path.join(_DATA_DIR, 'synergy_score', 'combin_data_35.csv'),
-    cellline_features=('gene_expression',),
+    cellline_features='gene_expression',
     n_epochs=800,
     gene_expression="gene_expression_raw/normalized_gene_expession_35.tsv",
     backup_expression = "gene_expression_raw/normalized_gene_expession_35.tsv",
@@ -189,7 +189,7 @@ gene_expression_setting = Settings(
 
 net_setting = Settings(
     synergy_score=os.path.join(_DATA_DIR, 'synergy_score', 'combin_data_35.csv'),
-    cellline_features=('netexpress',),
+    cellline_features='netexpress',
     n_epochs=1000,
     gene_expression = "gene_expression_raw/CCLE.tsv",
     backup_expression = "gene_expression_raw/GDSC.tsv",
