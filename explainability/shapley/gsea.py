@@ -6,7 +6,7 @@ import logging
 import argparse
 from collections import defaultdict
 from typing import List, Dict, Set
-from explainability.shap.utils import load_shap_data
+from explainability.shapley.utils import load_shap_data
 
 logging.getLogger('gseapy').setLevel(logging.ERROR)
 
@@ -100,16 +100,20 @@ def check_features_in_gene_sets(
 
 def perform_gsea_with_cleaned_genes(
     model: str,
-    base_dir_path: str = "./explainability/shap/results",
+    base_dir_path: str = "./explainability/shapley/results",
     gene_set_library: str = "MSigDB_Hallmark_2020",
-    save_dir: str = "./explainability/shap/results/gsea_results",
+    save_dir: str = "./explainability/shapley/results/gsea_results",
+    top_n: int = 100 #to specify the number of top features to use for GSEA in Transynergy
 ) -> pd.DataFrame:
-    shap_values, inputs, feature_names = load_shap_data(model, base_dir_path)
+    shap_values, inputs, feature_names, indices = load_shap_data(model, base_dir_path)
 
     ranking_df = clean_and_aggregate_features(feature_names, shap_values, model=model)
     ranking_df_expanded = expand_gene_family(ranking_df)
     
     #check_features_in_gene_sets(ranking_df_expanded, gene_set_library)
+
+    if model == "transynergy":
+        ranking_df_expanded = ranking_df_expanded.head(top_n)
 
     ranked_gene_list = ranking_df_expanded.set_index('gene')['score']
 
