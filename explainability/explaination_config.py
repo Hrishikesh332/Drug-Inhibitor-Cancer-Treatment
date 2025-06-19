@@ -6,7 +6,8 @@ from typing import Literal
 class ExplainationConfig:
     paper: Literal["biomining", "transynergy"]
     transynergy_features_parquet_path: str | None = "external/drug_combination/data/final_X.parquet"
-    
+    seed: int = 42
+
     def __post_init__(self):
         if self.paper == "biomining":
             self.feature_names = [
