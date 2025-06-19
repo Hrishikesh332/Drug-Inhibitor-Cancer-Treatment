@@ -37,3 +37,73 @@ predicting_synergy_nn/
     ├── results/            
     └── grid_results/         
 ```
+
+## Installation
+
+To set up the virtual environment and install dependencies
+
+```bash
+python setup_venv.py
+```
+
+## Usage
+
+### 1 Running Training for a Specific Fold
+
+```bash
+python -m src.training.trainer --config configs/base.yaml
+```
+
+Make sure to update the `base.yaml` file with the correct configuration for specific fold.
+
+### 2 Running Training for Multiple Folds
+
+```bash
+python scripts/run_training.py --folds 1,2,3 --config configs/base.yaml
+```
+
+### 3 Hyperparameter Search
+
+```bash
+python -m src.training.hyperparameter --config configs/grid.yaml
+```
+
+### 4 Running Grid Search for Multiple Folds and Splits
+
+
+```bash
+python scripts/run_grid_search.py --folds 1,2,3 --splits 1,2,3 --config configs/grid.yaml
+```
+
+### 5 Run training/grid search
+
+# For Training
+python scripts/run_training.py --folds 1,2,3 --config config/cv.yaml
+
+# For Grid search
+python scripts/run_grid_search.py --folds 1,2,3 --splits 1,2,3 --config configs/cv.yaml
+
+### In cv.yaml
+
+# Random CV (default)
+cv_strategy: random
+
+# Leave-cell-line-out CV  
+cv_strategy: cell_line
+cell_line_col: CELL_LINE
+
+# Leave-drug-out CV
+cv_strategy: drug
+drug_col: DRUG_ID
+
+
+## Configuration Files
+
+* `configs/base.yaml`
+ This file contains the configuration for the model training, including the model architecture, batch size, learning rate, etc
+
+* `configs/grid.yaml`
+
+This file contains the configuration for hyperparameter tuning, including the parameters to search over during grid search.
+
+

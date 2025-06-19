@@ -2,3 +2,7 @@ Cancer/
 venv/
 synergy_env/
 wandb/
+outputs/
+
+cross_valid.py
+run_cv.py
