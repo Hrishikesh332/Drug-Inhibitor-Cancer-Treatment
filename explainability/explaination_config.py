@@ -5,9 +5,9 @@ from typing import Literal
 @dataclass
 class ExplainationConfig:
     paper: Literal["biomining", "transynergy"]
-    transynergy_gene_csv_path: str | None = "external\drug_combination\data\genes\genes_2401_df.csv"
+    transynergy_features_parquet_path: str | None = "external/drug_combination/data/final_X.parquet"
     seed: int = 42
-    
+
     def __post_init__(self):
         if self.paper == "biomining":
             self.feature_names = [
@@ -17,16 +17,10 @@ class ExplainationConfig:
         ]
             self.feature_length = 33
         elif self.paper == "transynergy":
-            if self.transynergy_gene_csv_path is None:
-                raise ValueError("Please provide path to gene csv for paper transynergy")
-            gene_df = pd.read_csv(self.transynergy_gene_csv_path)
-            gene_symbols = gene_df['symbol'].tolist()
-            feature_names_drugs_a = [f"{g}_A" for g in gene_symbols] + ["pIC50_A"]
-            feature_names_drugs_b = [f"{g}_B" for g in gene_symbols] + ["pIC50_B"]
-            feature_names_cell_lines = gene_df['symbol'].tolist() + ["padding_feature"]
-            
-            self.feature_names = feature_names_drugs_a + feature_names_drugs_b + feature_names_cell_lines
-            self.feature_length = 2402 
-            # this is very important to "fold" the model imput correctly before forward pass
+            if self.transynergy_features_parquet_path is None:
+                raise ValueError("Please provide path to the features parquet file for paper transynergy")
+            X_df = pd.read_csv(self.transynergy_features_parquet_path)
+            self.feature_names = X_df.columns
+            self.feature_length = X_df.shape[0]
         else:
             raise ValueError(f"Unknown paper={self.paper}")

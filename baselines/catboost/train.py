@@ -1,7 +1,6 @@
 import fire
 import joblib
 import numpy as np
-import pandas as pd
 from external.predicting_synergy_nn.src.utils.data_loader import CVDatasetHandler
 from scipy.stats import pearsonr, spearmanr
 from sklearn.metrics import mean_squared_error
@@ -102,7 +101,7 @@ def train_and_eval_transynergy_catboost():
 
 
 def train_eval_and_save_transynergy_catboost(
-    model_output_path: str = "baselines/catboost/models/best_catboost_transynergy.pkl",
+    model_output_path: str = "baselines/catboost/models/best_catboost_transynergy_af_pandas.pkl",
 ):
     model = train_and_eval_transynergy_catboost()
     joblib.dump(model, model_output_path)
