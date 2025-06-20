@@ -2,7 +2,7 @@ import logging
 import pickle
 import shutil
 from os import environ, makedirs, path, sep
-
+import json
 import numpy as np
 import pandas as pd
 import shap
@@ -39,26 +39,26 @@ def get_final_index():
         final_index = trans_synergy.data.trans_synergy_data.SynergyDataReader.get_final_index()
     return final_index
 
-def prepare_data():
-
-    if not setting.update_xy:
-        assert (path.exists(setting.old_x) and path.exists(
-            setting.old_y)), "Data need to be downloaded from zenodo follow instruction in README"
-        X = np.load(setting.old_x)
-        with open(setting.old_x_lengths, 'rb') as old_x_lengths:
-            drug_features_length, cellline_features_length = pickle.load(old_x_lengths)
-        with open(setting.old_y, 'rb') as old_y:
-            Y = pickle.load(old_y)
-    else:
+def prepare_data(force_recompute: bool = True):
+    if force_recompute:
         X, drug_features_length, cellline_features_length = \
-            trans_synergy.data.trans_synergy_data.SamplesDataLoader.Raw_X_features_prep(methods='flexible_attn')
-        np.save(setting.old_x, X)
-        with open(setting.old_x_lengths, 'wb+') as old_x_lengths:
-            pickle.dump((drug_features_length,cellline_features_length), old_x_lengths)
-
+            trans_synergy.data.trans_synergy_data.SamplesDataLoader.construct_raw_features_X()
         Y = trans_synergy.data.trans_synergy_data.SamplesDataLoader.Y_features_prep()
-        with open(setting.old_y, 'wb+') as old_y:
-            pickle.dump(Y, old_y)
+        X.to_parquet(setting.final_x_parquet_path)
+        np.save(setting.final_y_npy_path, Y)
+        feature_lens_json = {'drug': drug_features_length, 'cellline': cellline_features_length}
+        with open(setting.final_feature_lens_json_path, 'w') as f:
+            json.dump(feature_lens_json, f)
+        return X, Y, drug_features_length, cellline_features_length
+
+    if not all(path_.exists() for path_ in [setting.final_x_parquet_path, setting.final_y_npy_path, setting.final_feature_lens_json_path]):
+        raise ValueError(f"Pre-computed data missing from disk. Please run this function with force_recompute=True")
+    X = pd.read_parquet(setting.final_x_parquet_path)
+    Y = np.load(setting.final_y_npy_path)
+    with open(setting.final_feature_lens_json_path, 'r') as f:
+        feature_lens_dict = json.load(f)
+    drug_features_length = feature_lens_dict['drug']
+    cellline_features_length = feature_lens_dict['cellline']
     return X, Y, drug_features_length, cellline_features_length
 
 
@@ -496,6 +496,7 @@ def run(use_wandb: bool = True,
     split_func = trans_synergy.data.trans_synergy_data.DataPreprocessor.regular_train_eval_test_split
     fold_idx = 0
     partition = split_func(fold_col_name=fold_col_name, test_fold=test_fold, evaluation_fold=eval_fold)
+
     training_generator, validation_generator, test_generator, all_data_generator, all_data_generator_total = train_model_on_fold(fold_idx, partition, X, Y, std_scaler, reorder_tensor,
                         drug_model, best_drug_model, optimizer, scheduler, use_wandb, slice_indices, fold_col_name = fold_col_name)
 

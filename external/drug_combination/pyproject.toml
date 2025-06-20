@@ -29,6 +29,7 @@ dependencies = [
   "fire==0.7.0",
   "h2o==3.46.0.7",
   "scikit-learn==1.6.1",
+  "pyarrow==20.0.0",
   "torch",
   # "pyNBS==1.1.0",  # Not on PyPI! Only used for preprocessing.
 ]
