@@ -1,5 +1,6 @@
 import logging
 from os import path
+from typing import Literal
 
 import numpy as np
 import pandas as pd
@@ -295,6 +296,12 @@ class SynergyDataReader(CustomDataReader):
         if not filtered:
             cls.__filter_drugs()
         return set(cls.synergy_score['cell_line'])
+    
+    @classmethod
+    def get_synergy_data_cell_lines_by_indices(cls, indices):
+        synergy_data = cls.get_synergy_score()
+        filtered_cell_lines = synergy_data.loc[synergy_data.index.isin(indices), 'cell_line']  
+        return filtered_cell_lines
 
     @classmethod
     def get_synergy_data_drugs(cls):
