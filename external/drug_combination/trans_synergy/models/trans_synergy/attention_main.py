@@ -156,7 +156,7 @@ def prepare_splitted_datasets(partition, labels, loaded_data):
             test_set,  all_set)
 
 
-def setup_data():
+def setup_data() -> tuple[StandardScaler, pd.DataFrame, np.array, ..., ...]:
     logger.debug("Getting features and synergy scores ...")
     std_scaler = StandardScaler()
     X, Y, drug_features_length, cellline_features_length = prepare_data()
