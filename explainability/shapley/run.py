@@ -17,7 +17,6 @@ def run_shap_explanation(
     X_train: torch.Tensor,
     X_test: torch.Tensor,
     logger: Logger,
-    kernel: bool = False,  # default to False for GradientExplainer
     **kwargs
 ):
     config = SHAPExplanationConfig(paper=paper, **kwargs)
@@ -31,7 +30,7 @@ def run_shap_explanation(
         name=f"{paper}_shap_explanation",
     )
 
-    logger.info(f"Running SHAP {'(KernelExplainer)' if kernel else '(GradientExplainer)'} for model: {paper}")
+    logger.info(f"Running SHAP (GradientExplainer) for model: {paper}")
 
     if isinstance(X_train, np.ndarray):
         X_train = torch.tensor(X_train, dtype=torch.float32)
@@ -61,21 +60,12 @@ def run_shap_explanation(
         background = background.view(background.shape[0], 3, -1)
         test_inputs = test_inputs.view(test_inputs.shape[0], 3, -1)
 
-    # Define model prediction function for KernelExplainer
-    def model_prediction(input_data):
-        input_tensor = torch.tensor(input_data, dtype=torch.float32).to(device)
-        output = model(input_tensor)
-        return output.detach().cpu().numpy()
-
-    if kernel:
-        explainer = shap.KernelExplainer(model_prediction, background.cpu().numpy())
-    else:
-        explainer = shap.GradientExplainer(model, background)
+    
+    explainer = shap.GradientExplainer(model, background)
 
     shap_values = []
     for i in tqdm(range(test_inputs.shape[0]), desc="SHAP explanation"):
-        # SHAP KernelExplainer works on a single sample at a time
-        val = explainer.shap_values(test_inputs[i:i+1].cpu().numpy()) if kernel else explainer.shap_values(test_inputs[i:i+1])
+        val = explainer.shap_values(test_inputs[i:i+1])
         shap_values.append(val)
 
     if config.paper == "transynergy":
@@ -93,7 +83,7 @@ def run_shap_explanation(
     else:
         inputs_np = np.array(test_inputs)
 
-    npz_path = output_dir / ("kernel_complete.npz" if kernel else "shap_complete.npz")
+    npz_path = output_dir / "shap_complete.npz"
     np.savez_compressed(
         npz_path,
         shap_values=shap_values_matrix,

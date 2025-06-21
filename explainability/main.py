@@ -52,7 +52,7 @@ def load_data(model_name: str, split: str = 'train'):
     cfg = MODEL_DATA_REGISTRY[model_name]
     return cfg.data_loader(split=split)
 
-def run_explanation(model, model_name, method, X_train, Y_train, X_test, Y_test, logger, kernel: bool = False, **kwargs):
+def run_explanation(model, model_name, method, X_train, Y_train, X_test, Y_test, logger, **kwargs):
     if method == 'shap':
         run_shap_explanation(
                             model=model,
@@ -60,7 +60,6 @@ def run_explanation(model, model_name, method, X_train, Y_train, X_test, Y_test,
                             X_train=X_train,
                             X_test=X_test,
                             logger=logger,
-                            kernel=kernel, 
                             **kwargs
                         )
     elif method == 'anchors':
@@ -121,9 +120,6 @@ def main():
                         default='lrp',
                         choices=['shap', 'anchors', 'activation_max', 'integrated_gradients', 'lrp'],
                         help='Which explainability method to use')
-    parser.add_argument('--kernel', 
-                        action='store_true',
-                        help='Use KernelExplainer for SHAP (default is GradientExplainer)')
 
     args = parser.parse_args()
 
@@ -140,8 +136,7 @@ def main():
                     Y_train= Y_train,
                     X_test= X_test,
                     Y_test= Y_test,
-                    logger=logger,
-                    kernel=args.kernel)
+                    logger=logger)
 
 
 if __name__ == '__main__': 
