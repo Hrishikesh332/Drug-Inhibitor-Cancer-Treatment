@@ -3,7 +3,6 @@ import torch
 import numpy as np
 from sklearn.cluster import MiniBatchKMeans
 from sklearn.decomposition import PCA
-from pathlib import Path
 
 import trans_synergy
 from trans_synergy.models.trans_synergy.attention_main import setup_data as setup_data_transynergy 
@@ -23,7 +22,7 @@ def load_transynergy_data(split: Literal['train', 'test'] = 'train'):
     
     if split == 'test':
         split = 'test1'
-    std_scaler, X, Y, _, _ = setup_data_transynergy ()
+    std_scaler, X_df, Y, _, _ = setup_data_transynergy()
     split_func = trans_synergy.data.trans_synergy_data.DataPreprocessor.regular_train_eval_test_split
     partition = split_func(fold_col_name="fold", test_fold=4, evaluation_fold=0)
     partition_indices = {
@@ -33,7 +32,8 @@ def load_transynergy_data(split: Literal['train', 'test'] = 'train'):
         'eval1': partition[3],
         'eval2': partition[4]
     }
-    
+
+    X = X_df.to_numpy()
     std_scaler.fit(Y[partition_indices['train']])
     Y = std_scaler.transform(Y)
     X_res = X[partition_indices[split]]

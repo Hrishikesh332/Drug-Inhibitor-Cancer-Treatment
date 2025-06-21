@@ -19,7 +19,7 @@ class ExplainationConfig:
         elif self.paper == "transynergy":
             if self.transynergy_features_parquet_path is None:
                 raise ValueError("Please provide path to the features parquet file for paper transynergy")
-            X_df = pd.read_csv(self.transynergy_features_parquet_path)
+            X_df = pd.read_parquet(self.transynergy_features_parquet_path)
             self.feature_names = X_df.columns
             self.feature_length = X_df.shape[0]
         else:
