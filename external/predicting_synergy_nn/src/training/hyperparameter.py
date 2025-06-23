@@ -14,22 +14,22 @@ from src.models.metrics import calc_pearson, calc_spearman
 from src.utils.data_loader import load_valid_data
 from src.utils.visualization import plot_grid_results
 
-def train_eval(model, tr_dl, vl_dl, lr, max_ep, dev, early_stop=50, log_wandb=False):
+def train_eval(model, training_dataloader, validation_dataloader, learning_rate: float, max_epochs: int, device: str, early_stop: int = 50, log_wandb: bool = False):
     crit = nn.MSELoss()
-    lr = float(lr)
+    lr = float(learning_rate)
     opt = optim.Adam(model.parameters(), lr=lr)
     
     best_val = -1.0
     p_cnt = 0
     
-    for ep in range(1, max_ep + 1):
+    for ep in range(1, max_epochs + 1):
         model.train()
         train_loss = 0.0
         train_pearson = 0.0
         train_samples = 0
         
-        for batch_idx, (x, y) in enumerate(tr_dl):
-            x, y = x.to(dev), y.to(dev)
+        for batch_idx, (x, y) in enumerate(training_dataloader):
+            x, y = x.to(device), y.to(device)
             opt.zero_grad()
             out = model(x)
             loss = crit(out, y)
@@ -53,8 +53,8 @@ def train_eval(model, tr_dl, vl_dl, lr, max_ep, dev, early_stop=50, log_wandb=Fa
         all_true = []
         
         with torch.no_grad():
-            for x, y in vl_dl:
-                x, y = x.to(dev), y.to(dev)
+            for x, y in validation_dataloader:
+                x, y = x.to(device), y.to(device)
                 out = model(x)
                 loss = crit(out, y)
                 pearson = calc_pearson(out, y)
@@ -104,8 +104,8 @@ def run_hyperparameter_search_all_folds(config_path):
     with open(config_path, 'r') as f:
         base_cfg = yaml.safe_load(f)
     
-    folds = base_cfg.get('folds', [1, 2, 3])
-    splits = base_cfg.get('splits', [1, 2, 3])
+    folds = base_cfg['folds']
+    splits = base_cfg['splits']
     
     if isinstance(folds, str):
         folds = [int(f.strip()) for f in folds.split(',')]

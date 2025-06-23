@@ -42,9 +42,15 @@ predicting_synergy_nn/
 
 To set up the virtual environment and install dependencies
 
-```bash
-python setup_venv.py
-```
+1. **Create and activate a conda environment**:
+   ```bash
+   conda create -n biomining python=3.11
+   conda activate biomining
+   ```
+2. **Install project dependencies**:
+   ```bash
+   pip install -r requirements.txt
+   ```
 
 ## Usage
 
