@@ -136,7 +136,7 @@ def train_model(cfg):
             optimizer=opt, 
             mode='min', 
             factor=0.5,
-            patience=50,
+            patience=500,
             verbose=True
         )
         sched = test_scheduler
@@ -146,7 +146,7 @@ def train_model(cfg):
             optimizer=opt,
             mode='min',
             factor=0.5,
-            patience=50
+            patience=500
         )
         print("Using scheduler without verbose parameter")
     
