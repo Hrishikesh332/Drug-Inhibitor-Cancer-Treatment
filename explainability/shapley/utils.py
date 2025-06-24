@@ -4,7 +4,7 @@ from pathlib import Path
 
 def load_shap_data(
     paper: Literal["biomining", "transynergy"],
-    base_dir_path: str = "./explainability/shap/results",
+    base_dir_path: str = "./explainability/shapley/results",
 ):
     npz_path = Path(base_dir_path) / paper / "shap_complete.npz"
     if not npz_path.exists():
@@ -14,7 +14,8 @@ def load_shap_data(
     shap_values = data["shap_values"]
     inputs = data["inputs"]
     feature_names = data["feature_names"].tolist()
-    return shap_values, inputs, feature_names
+    test_indices = data['test_indices']
+    return shap_values, inputs, feature_names, test_indices
 
 
 

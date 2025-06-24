@@ -11,9 +11,9 @@ class ExplainationConfig:
     def __post_init__(self):
         if self.paper == "biomining":
             self.feature_names = [
-            "ABL", "ABLb", "CSF1R", "CSF1Rb", "EGFR", "EGFRb", "FLT1", "FLT1b", "FLT4", "FLT4b",
+            "ABL1", "ABL1b", "CSF1R", "CSF1Rb", "EGFR", "EGFRb", "FLT1", "FLT1b", "FLT4", "FLT4b",
             "KDR", "KDRb", "KIT", "KITb", "MCL1", "MCL1b", "NR1I2", "NR1I2b", "PDGFRB", "PDGFRBb",
-            "RET", "RETb", "TOP2", "TOP2b", "TUB1", "TUB1b", "GATA3", "NF1", "NF2", "P53", "PI3K", "PTEN", "RAS"
+            "RET", "RETb", "TOP2A", "TOP2Ab", "TUBB1", "TUBB1b", "GATA3", "NF1", "NF2", "P53", "PI3K", "PTEN", "RAS"
         ]
             self.feature_length = 33
         elif self.paper == "transynergy":

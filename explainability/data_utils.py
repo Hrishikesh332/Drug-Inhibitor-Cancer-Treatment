@@ -41,6 +41,31 @@ def load_transynergy_data(split: Literal['train', 'test'] = 'train'):
     
     return X_res, Y_res
 
+def load_transynergy_cell_line_data(split: Literal['train', 'test'] = 'train'):
+    """
+    Load the Transynergy cell line data from the correct split.
+    """
+    # Use test 4 and eval 0 in regular_train_eval_test_split to get the partition indices
+    split_func = trans_synergy.data.trans_synergy_data.DataPreprocessor.regular_train_eval_test_split
+    partition = split_func(fold_col_name="fold", test_fold=4, evaluation_fold=0)
+    partition_indices = {
+        'train': partition[0],
+        'test1': partition[1],
+        'test2': partition[2],
+        'eval1': partition[3],
+        'eval2': partition[4]
+    }
+    
+    if split == 'test':
+        # returns test1 just like load data for explainability
+        split_indices = partition_indices['test1']
+    else:
+        split_indices = partition_indices[split]
+    
+    handler = trans_synergy.data.trans_synergy_data.SynergyDataReader
+    cell_lines = handler.get_synergy_data_cell_lines_by_indices(split_indices) 
+    return  cell_lines
+
 
 def load_biomining_data(split: Literal['train', 'test'] = 'train'):
     """
@@ -124,4 +149,4 @@ def select_representative_samples(X: torch.Tensor, num_samples: int):
         indices.append(idx)
     indices = list(set(indices))
     selected_samples = X[indices]
-    return selected_samples
+    return selected_samples, indices

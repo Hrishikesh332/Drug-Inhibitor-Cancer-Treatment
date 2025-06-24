@@ -11,7 +11,6 @@ from logging import Logger
 from explainability.data_utils import select_representative_samples, reshape_transynergy_input
 from explainability.shapley.config import SHAPExplanationConfig
 
-
 def run_shap_explanation(
     model: torch.nn.Module,
     paper: Literal["biomining", "transynergy"],
@@ -52,8 +51,8 @@ def run_shap_explanation(
         X_train_sample = X_train
         X_test_sample = X_test
         
-    background = select_representative_samples(X_train_sample, background_size)
-    test_inputs = select_representative_samples(X_test_sample, test_size)
+    background, background_indices = select_representative_samples(X_train_sample, background_size)
+    test_inputs, test_indices = select_representative_samples(X_test_sample, test_size)
 
     if config.paper == "transynergy":
         X_train = reshape_transynergy_input(X_train, logger, "X_train")
@@ -61,6 +60,7 @@ def run_shap_explanation(
         background = background.view(background.shape[0], 3, -1)
         test_inputs = test_inputs.view(test_inputs.shape[0], 3, -1)
 
+    
     explainer = shap.GradientExplainer(model, background)
 
     shap_values = []
@@ -73,7 +73,7 @@ def run_shap_explanation(
     elif config.paper == "biomining":
         shap_values_matrix = np.vstack([sv[0] for sv in shap_values])
 
-    output_dir = Path(f"explainability/shap/results/{paper}")
+    output_dir = Path(f"explainability/shapley/results/{paper}")
     output_dir.mkdir(parents=True, exist_ok=True)
 
     if isinstance(test_inputs, torch.Tensor):
@@ -88,10 +88,11 @@ def run_shap_explanation(
         npz_path,
         shap_values=shap_values_matrix,
         inputs=inputs_np,
-        feature_names=np.array(config.feature_names)
+        feature_names=np.array(config.feature_names),
+        test_indices=np.array(test_indices)
     )
 
-    logger.info(f"Saved complete SHAP data at {output_dir / 'shap_complete.npz'}")
+    logger.info(f"Saved complete SHAP data at {npz_path}")
 
     artifact = wandb.Artifact(f"{paper}_shap_complete_data", type="shap_data")
     artifact.add_file(str(npz_path))

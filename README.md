@@ -211,6 +211,12 @@ Here is the location to check result of these meathods : `explainability\noteboo
 python -m explainability.main --model biomining --method activation_max
 python -m explainability.main --model transynergy --method integrated_gradients
 ```
+
+**To run GSEA after running Shapley (Example)**
+```bash
+python -m explainability.shapley.gsea --paper biomining
+```
+
 ---
 
 ## References
