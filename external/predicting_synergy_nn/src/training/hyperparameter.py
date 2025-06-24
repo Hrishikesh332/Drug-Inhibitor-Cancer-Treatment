@@ -69,7 +69,7 @@ def train_eval(model, training_dataloader, validation_dataloader, learning_rate:
         all_pred = torch.cat(all_pred, dim=0)
         all_true = torch.cat(all_true, dim=0)
         val_spearman = calc_spearman(all_pred, all_true).item()
-        
+
         avg_val_loss = val_loss / val_samples
         avg_val_pearson = val_pearson / val_samples
 
@@ -84,8 +84,8 @@ def train_eval(model, training_dataloader, validation_dataloader, learning_rate:
                 'learning_rate': lr
             })
         
-        if val_spearman > best_val:
-            best_val = val_spearman
+        if val_loss > best_val:
+            best_val = val_loss
             p_cnt = 0
         else:
             p_cnt += 1
