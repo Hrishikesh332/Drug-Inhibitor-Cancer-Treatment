@@ -23,17 +23,17 @@ exclude_genes = {"PADDING", "PIC50"}
 def clean_and_aggregate_features(
     feature_names: List[str], 
     shap_values: np.ndarray,
-    model: str 
+    paper: str 
 ) -> pd.DataFrame:
     """
-    Cleans feature names depending on model (removes b for biomining and _A / _B for transynergy) 
+    Cleans feature names depending on paper (removes b for biomining and _A / _B for transynergy) 
     and aggregates SHAP scores.
     """
     gene_to_indices = defaultdict(list)
     for idx, feat in enumerate(feature_names):
-        if model == "biomining":
+        if paper == "biomining":
             gene = feat[:-1] if feat.endswith('b') else feat
-        elif model == "transynergy":
+        elif paper == "transynergy":
             if "_" in feat:
                 gene = feat.split("_")[0]
             else:
@@ -99,20 +99,20 @@ def check_features_in_gene_sets(
     print(f"{not_found_count} were not found")
 
 def perform_gsea_with_cleaned_genes(
-    model: str,
+    paper: str,
     base_dir_path: str = "./explainability/shapley/results",
     gene_set_library: str = "MSigDB_Hallmark_2020",
     save_dir: str = "./explainability/shapley/results/gsea_results",
     top_n: int = 100 #to specify the number of top features to use for GSEA in Transynergy
 ) -> pd.DataFrame:
-    shap_values, inputs, feature_names, indices = load_shap_data(model, base_dir_path)
+    shap_values, inputs, feature_names, indices = load_shap_data(paper, base_dir_path)
 
-    ranking_df = clean_and_aggregate_features(feature_names, shap_values, model=model)
+    ranking_df = clean_and_aggregate_features(feature_names, shap_values, paper=paper)
     ranking_df_expanded = expand_gene_family(ranking_df)
     
     #check_features_in_gene_sets(ranking_df_expanded, gene_set_library)
 
-    if model == "transynergy":
+    if paper == "transynergy":
         ranking_df_expanded = ranking_df_expanded.head(top_n)
 
     ranked_gene_list = ranking_df_expanded.set_index('gene')['score']
@@ -132,26 +132,26 @@ def perform_gsea_with_cleaned_genes(
     )
 
     os.makedirs(save_dir, exist_ok=True)
-    save_path = os.path.join(save_dir, f"{model}_GSEA_{gene_set_library}.pkl")
+    save_path = os.path.join(save_dir, f"{paper}_GSEA_{gene_set_library}.pkl")
 
     gsea_results.res2d.to_pickle(save_path)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run GSEA on SHAP values for Biomining or TranSynergy.")
-    parser.add_argument("--model", choices=["biomining", "transynergy"], default="biomining",
-                        help="Select model type to analyze: 'biomining' or 'transynergy'")
+    parser.add_argument("--paper", choices=["biomining", "transynergy"], default="biomining",
+                        help="Select paper type to analyze: 'biomining' or 'transynergy'")
     args = parser.parse_args()
-    model = args.model
+    paper = args.paper
 
     for lib in [
         "MSigDB_Hallmark_2020",
         "Reactome_2016",
         "GO_Biological_Process_2021",
     ]:
-        print(f"\nRunning GSEA with gene set library: {lib} for model {model}")
+        print(f"\nRunning GSEA with gene set library: {lib} for paper {paper}")
         
         perform_gsea_with_cleaned_genes(
-            model=model,
+            paper=paper,
             gene_set_library=lib,
         )
