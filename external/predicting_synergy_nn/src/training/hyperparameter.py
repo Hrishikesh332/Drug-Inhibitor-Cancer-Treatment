@@ -8,6 +8,7 @@ import torch.nn as nn
 import torch.optim as optim
 from tqdm import tqdm
 import wandb
+import numpy as np
 
 from src.models.architectures import SynergyModel
 from src.models.metrics import calc_pearson, calc_spearman
@@ -19,7 +20,7 @@ def train_eval(model, training_dataloader, validation_dataloader, learning_rate:
     lr = float(learning_rate)
     opt = optim.Adam(model.parameters(), lr=lr)
     
-    best_val = -1.0
+    best_val = np.inf
     p_cnt = 0
     
     for ep in range(1, max_epochs + 1):
@@ -84,7 +85,7 @@ def train_eval(model, training_dataloader, validation_dataloader, learning_rate:
                 'learning_rate': lr
             })
         
-        if val_loss > best_val:
+        if val_loss < best_val:
             best_val = val_loss
             p_cnt = 0
         else:
@@ -170,6 +171,7 @@ def run_grid_search(cfg):
     use_wb = cfg.get('use_wb', True)
     wb_proj = cfg.get('wb_proj', 'synergy-grid')
     max_ep = cfg.get('max_ep', 500)
+    patience = cfg.get('patience', 50)
     
     param_grid = {
         'lr': [float(lr) for lr in cfg.get('lr', [1e-5, 5e-5, 1e-4])],
@@ -222,7 +224,7 @@ def run_grid_search(cfg):
             
             best_val, epochs = train_eval(
                 model, tr_dl, vl_dl, lr, max_ep, dev, 
-                early_stop=50, log_wandb=use_wb
+                early_stop=patience, log_wandb=use_wb
             )
             
             results.append({
