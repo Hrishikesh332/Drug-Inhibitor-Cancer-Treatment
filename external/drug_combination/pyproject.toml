@@ -30,7 +30,8 @@ dependencies = [
   "h2o==3.46.0.7",
   "scikit-learn==1.6.1",
   "pyarrow==20.0.0",
-  "torch",
+  "frozendict",
+  # "torch",
   # "pyNBS==1.1.0",  # Not on PyPI! Only used for preprocessing.
 ]
 
