@@ -123,6 +123,7 @@ class TransposeMultiTransformers(nn.Module):
             d_input_list
         ) == len(d_model_list), "claimed inconsistent number of transformers"
         self.linear_only = linear_only
+        self.d_model = d_model_list[0]
         self.linear_layers = nn.ModuleList()
         self.norms = nn.ModuleList()
         self.dropouts = nn.ModuleList()
@@ -180,12 +181,12 @@ class TransposeMultiTransformers(nn.Module):
                 )
                 src_list_dim.append(
                     cur_src_processed_dim.contiguous().view(
-                        [-1, setting.d_model_i, setting.d_model_j]
+                        [-1, setting.d_model_i, self.d_model]
                     )
                 )
                 trg_list_dim.append(
                     cur_trg_processed_dim.contiguous().view(
-                        [-1, setting.d_model_i, setting.d_model_j]
+                        [-1, setting.d_model_i, self.d_model]
                     )
                 )
                 cur_linear += 1
@@ -324,74 +325,6 @@ class TransposeMultiTransformersPlusLinear(TransposeMultiTransformers):
             output = F.softmax(output, dim=-1)
         return output
 
-
-class LastFC(nn.Module):
-
-    def __init__(self, d_model_list, dropout, input_len=None, classifier=False):
-
-        super(LastFC, self).__init__()
-        self.hidden_size = 100
-        if input_len is None:
-            input_len = 3 * len(
-                setting.catoutput_intput_type
-            ) * setting.d_model + 2 * sum(list(setting.dir_input_type.values()))
-        self.out = OutputFeedForward(
-            input_len, 1, d_layers=setting.output_FF_layers, dropout=dropout
-        )
-        self.classifier = classifier
-
-    def forward(self, input):
-
-        # cat_input = cat(tuple(input), dim=1)
-        if isinstance(input, list) and len(input) == 1:
-            input = input[0]
-        bs = input.size(0)
-        attn_output = input.contiguous().view(bs, -1)
-        output = self.out(attn_output, low_dim=True)
-        if self.classifier:
-            # output = F.log_softmax(output, dim = -1)
-            # output = F.softmax(output, dim = -1)
-            output = F.relu(output)
-        return output
-
-
-def get_retrain_model(classifier=False):
-
-    if not isinstance(setting.d_model, list):
-        d_models = [setting.d_model] * 3 * len(setting.catoutput_intput_type)
-    else:
-        d_models = setting.d_model
-
-    model = LastFC(d_models, setting.attention_dropout)
-
-    for p in model.parameters():
-        if p.dim() > 1:
-            nn.init.xavier_uniform_(p)
-
-    if use_cuda:
-        model.to(device2)
-
-    return model
-
-
-def get_model(inputs_lengths):
-    assert setting.d_model % setting.attention_heads == 0
-    assert setting.attention_dropout < 1
-
-    # model = TransformerPlusLinear(setting.d_input, setting.d_model, setting.n_layers, setting.attention_heads, setting.attention_dropout)
-    model = FlexibleTransformer(
-        inputs_lengths,
-        setting.d_model,
-        setting.n_layers,
-        setting.attention_heads,
-        setting.attention_dropout,
-    )
-
-    for p in model.parameters():
-        if p.dim() > 1:
-            nn.init.xavier_uniform_(p)
-
-    return model
 
 
 def get_multi_models(
