@@ -20,6 +20,7 @@ from trans_synergy.models.crossval.utils import (
     make_hashable,
     unhashable,
     train_model_and_eval,
+    set_seed
 )
 
 setting = trans_synergy.settings.get()
@@ -57,14 +58,11 @@ def run(
 
     param_grid = [
         {
-            "attention_heads": [1, 2, 4],
-            "d_model": [400, 512],
-            "n_layers": [1, 2, 3],
+            "attention_heads": [1], # because d_model of the transformer is always 3!
+            "d_model": [128, 256, 400, 512, 736],
+            "n_layers": [1, 2, 3, 4],
             "attention_dropout": [0.1, 0.2, 0.3],
-            "n_feature_type": [1, 3],
-            "fc_hidden_units": [[2000, 1000, 1], [1000, 500, 1]],
-            "classifier": [False, True],
-            "drugs_on_the_side": [False, True],
+            "n_feature_type": [3]
         }
     ]
 
@@ -77,11 +75,13 @@ def run(
     for params in tqdm(sampled_combinations, desc="Param grid search"):
         hashable_params = make_hashable(params)
         current_results[hashable_params] = []
+    
         for eval_idx, partition in tqdm(
             enumerate(split_cv_func(fold=fold_col_name, test_fold=test_fold)),
             total=5,
             desc="CV folds",
         ):
+            set_seed(eval_idx)
             init_wandb(
                 fold_idx=eval_idx,
                 crossval=True,
@@ -120,9 +120,9 @@ def run(
     best_params = min(current_results, key=lambda x: current_results[x])
     best_params = unhashable(best_params)
 
-    drug_model, best_drug_model, optimizer, scheduler = setup_model_and_optimizer(
-        reorder_tensor, best_params
-    )
+    drug_model, optimizer, scheduler = setup_model_and_optimizer_with_params(
+                reorder_tensor, best_params
+            )
 
     split_func = (
         trans_synergy.data.trans_synergy_data.DataPreprocessor.regular_train_eval_test_split
@@ -140,7 +140,7 @@ def run(
         std_scaler,
         reorder_tensor,
         drug_model,
-        best_drug_model,
+        None,
         optimizer,
         scheduler,
         use_wandb,
