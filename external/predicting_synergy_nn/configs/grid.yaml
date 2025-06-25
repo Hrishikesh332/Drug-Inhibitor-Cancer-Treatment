@@ -1,7 +1,7 @@
 fold: 1
 split: 1
 batch: 100
-max_ep: 2000
+max_ep: 4000
 data_dir: data
 out_dir: outputs
 use_wb: true
