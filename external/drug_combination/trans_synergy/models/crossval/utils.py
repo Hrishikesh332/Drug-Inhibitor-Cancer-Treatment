@@ -1,6 +1,7 @@
 import torch
 import copy
 import wandb
+import os
 from frozendict import frozendict
 
 import trans_synergy
@@ -12,8 +13,9 @@ from trans_synergy.models.trans_synergy.attention_main import (
     init_wandb,
     train_loop,
     prepare_splitted_dataloaders,
-    evaluate,
+    evaluate
 )
+from trans_synergy.models.trans_synergy.attention_main import save_model as save_model_weights
 from trans_synergy.utils import set_seed
 
 setting = trans_synergy.settings.get()
@@ -27,12 +29,12 @@ def get_model_with_params(
     classifier=False,
     **params
 ):
-
-    d_model_param = params.get("d_model", setting.d_model)
-    n_feature_type_param = params.get("n_feature_type", setting.n_feature_type)
-    n_layers = params.get("n_layers", setting.n_layers)
-    attention_heads = params.get("attention_heads", setting.attention_heads)
-    attention_dropout = params.get("attention_dropout", setting.attention_dropout)
+    model_params = params["params"]
+    d_model_param = model_params.get("d_model", setting.d_model)
+    n_feature_type_param = model_params.get("n_feature_type", setting.n_feature_type)
+    n_layers = model_params.get("n_layers", setting.n_layers)
+    attention_heads = model_params.get("attention_heads", setting.attention_heads)
+    attention_dropout = model_params.get("attention_dropout", setting.attention_dropout)
 
     if not isinstance(d_model_param, list):
         d_models = [d_model_param] * len(inputs_lengths)
@@ -115,7 +117,7 @@ def train_model_and_eval(
     fold_col_name=None,
 ):
     """
-    Cross-validation method that builds model from params using get_multi_models.
+    Cross-validation method that builds model.
     """
     if use_wandb:
         init_wandb(
@@ -178,7 +180,7 @@ def train_model_and_eval(
         use_wandb,
     )
     if save_model:
-        save_model(best_model, setting.run_dir, eval_idx)
+        save_model_weights(best_model, os.path.join(setting.run_dir, "best_model"), eval_idx)
 
     if use_wandb:
         wandb.finish()
