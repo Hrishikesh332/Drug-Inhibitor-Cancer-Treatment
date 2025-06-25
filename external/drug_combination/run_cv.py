@@ -45,9 +45,9 @@ def run_crossvalidation(
         settings_choice: str = "gene_dependency",
         fold_col_name: str = "fold",
         use_wandb: bool = True,
-        n_params_in_grid: int = 10,
+        n_params_in_grid: int = 40,
         test_fold: int = 4,
-        epochs_in_cv: int = 10
+        epochs_in_cv: int = 800
 ):
     if settings_choice not in _CLI_INPUT_TO_CONFIG_MAP:
         raise ValueError(f"The setting {settings_choice} is not recognised. Please choose one of: {_CLI_INPUT_TO_CONFIG_MAP.keys()}")
