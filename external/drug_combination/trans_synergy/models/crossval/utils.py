@@ -111,7 +111,7 @@ def train_model_and_eval(
     save_model=False,
     testing=False,
     n_epochs=100,
-    patience=100,
+    patience=500,
     fold_col_name=None,
 ):
     """

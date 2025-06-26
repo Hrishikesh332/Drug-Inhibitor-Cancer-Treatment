@@ -33,8 +33,8 @@ def run(
     fold_col_name: str = "fold",
     n_params_in_grid: int = 10,
     test_fold=4,
-    epochs_in_cv: int = 400,
-    patience: int = 100,
+    epochs_in_cv: int = 2000,
+    patience: int = 500,
 ):
     """
     Crossval with the set test fold as 4th index.
@@ -149,7 +149,7 @@ def run(
         n_epochs=setting.n_epochs,
         save_model=True,
         testing=True,
-        patience=100,
+        patience=500,
         fold_col_name=fold_col_name,
     )
     wandb.finish()

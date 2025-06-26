@@ -207,7 +207,7 @@ def train_loop(model,
                std_scaler, 
                use_wandb, 
                slice_indices, 
-               patience = 100,
+               patience = 500,
                n_epochs = 800):
     best_val_score = -float("inf")
     epochs_without_improvement = 0

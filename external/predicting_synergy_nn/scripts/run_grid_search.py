@@ -1,8 +1,7 @@
-import os
 import argparse
 import yaml
-import subprocess
 from itertools import product
+from src.training.hyperparameter import run_grid_search
 
 def run_grid(fold, split, base_cfg):
 
@@ -10,17 +9,7 @@ def run_grid(fold, split, base_cfg):
     cfg['fold'] = fold
     cfg['split'] = split
     
-    temp_cfg = f"temp_grid_f{fold}_s{split}.yaml"
-    with open(temp_cfg, 'w') as f:
-        yaml.dump(cfg, f)
-    
-    cmd = f"python -m src.training.hyperparameter --config {temp_cfg}"
-    print(f"Running: {cmd}")
-    subprocess.run(cmd, shell=True)
-
-    os.remove(temp_cfg)
-    
-    print(f"Completed grid search for fold {fold}, split {split}")
+    run_grid_search(cfg)
 
 def main():
     parser = argparse.ArgumentParser(description='Run grid search for multiple folds/splits')
