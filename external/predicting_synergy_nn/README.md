@@ -1,4 +1,6 @@
-# Biomining folder structure 
+# Biomining project
+
+## Folder structure
 
 ```
 predicting_synergy_nn/
@@ -27,10 +29,11 @@ predicting_synergy_nn/
 │       └── hyperparameter.py
 ├── configs/
 │   ├── base.yaml      
-│   └── grid.yaml        
-├── scripts/
-│   ├── run_training.py       
-│   └── run_grid_search.py    
+│   ├── grid.yaml      
+│   └── cv.yaml   
+├── cli/
+│   ├── run_grid_search.py       
+│   └── run_k_fold_cross_validation.py    
 └── outputs/                
     ├── models/               # Saved models
     ├── logs/                 
@@ -42,7 +45,7 @@ predicting_synergy_nn/
 
 To set up the virtual environment and install dependencies
 
-1. **Create and activate a conda environment**:
+1. **Create and activate a conda environment (if not yet existing)**:
    ```bash
    conda create -n biomining python=3.11
    conda activate biomining
@@ -53,63 +56,32 @@ To set up the virtual environment and install dependencies
    ```
 
 ## Usage
+Before running any command, set `PYTHONPATH=src`.
 
-### 1 Running Training for a Specific Fold
-
-```bash
-python -m src.training.trainer --config configs/base.yaml
-```
-
-Make sure to update the `base.yaml` file with the correct configuration for specific fold.
-
-### 2 Running Training for Multiple Folds
+### 1 Running k-fold Cross Validation
+The data is split up into 3 folds. You can choose which to run on using the `--folds` argument, and the script will 
+report the final CV scores.
 
 ```bash
-python scripts/run_training.py --folds 1,2,3 --config configs/base.yaml
+python cli/run_k_fold_cross_validation.py --folds 1,2,3 --config configs/base.yaml
 ```
 
-### 3 Hyperparameter Search
+### 2 Hyperparameter Search
 
 ```bash
-python -m src.training.hyperparameter --config configs/grid.yaml
+python cli/run_grid_search.py --folds 1,2,3 --splits 1,2,3 --config configs/grid.yaml
 ```
-
-### 4 Running Grid Search for Multiple Folds and Splits
-
-
-```bash
-python scripts/run_grid_search.py --folds 1,2,3 --splits 1,2,3 --config configs/grid.yaml
-```
-
-### 5 Run training/grid search
-
-# For Training
-python scripts/run_training.py --folds 1,2,3 --config config/cv.yaml
-
-# For Grid search
-python scripts/run_grid_search.py --folds 1,2,3 --splits 1,2,3 --config configs/cv.yaml
-
-### In cv.yaml
-
-# Random CV (default)
-cv_strategy: random
-
-# Leave-cell-line-out CV  
-cv_strategy: cell_line
-cell_line_col: CELL_LINE
-
-# Leave-drug-out CV
-cv_strategy: drug
-drug_col: DRUG_ID
 
 
 ## Configuration Files
 
 * `configs/base.yaml`
- This file contains the configuration for the model training, including the model architecture, batch size, learning rate, etc
+This file contains the configuration for the model training, including the model architecture, batch size, learning rate, etc
 
 * `configs/grid.yaml`
-
 This file contains the configuration for hyperparameter tuning, including the parameters to search over during grid search.
+
+*  `configs/cv.yaml`
+TODO: add description after implementing
 
 

@@ -1,6 +1,5 @@
 import os
 import time
-import yaml
 import numpy as np
 import torch
 import torch.nn as nn
@@ -8,12 +7,12 @@ import torch.optim as optim
 from tqdm import tqdm
 import wandb
 
-from src.models.architectures import SynergyModel
-from src.models.metrics import calc_pearson, calc_spearman
-from src.utils.data_loader import load_data
-from src.utils.visualization import plot_metrics, plot_preds
+from models.architectures import SynergyModel
+from models.metrics import calc_pearson, calc_spearman
+from utils.data_loader import load_data
+from utils.visualization import plot_metrics
 
-def train_epoch(model, loader, opt, crit, dev):
+def train_epoch(model, loader, opt, crit):
     model.train()
     loss_sum = 0.0
     pear_sum = 0.0
@@ -46,7 +45,7 @@ def train_epoch(model, loader, opt, crit, dev):
     
     return avg_loss, avg_pear, spear.item()
 
-def eval_model(model, loader, crit, dev):
+def eval_model(model, loader, crit):
     model.eval()
     loss_sum = 0.0
     pear_sum = 0.0
@@ -89,6 +88,7 @@ def train_model(cfg):
     wb_run = str(cfg.get('wb_run', f'fold{fold}_{arch}'))
     data_dir = str(cfg.get('data_dir', 'data'))
     out_dir = str(cfg.get('out_dir', 'outputs'))
+    patience = int(cfg.get('patience', 500))
     
     print("Configuration parameters:")
     print(f"  fold: {fold} (type: {type(fold)})")
@@ -97,6 +97,7 @@ def train_model(cfg):
     print(f"  lr: {lr} (type: {type(lr)})")
     print(f"  epochs: {epochs} (type: {type(epochs)})")
     print(f"  drop: {drop} (type: {type(drop)})")
+    print(f"  patience: {patience} (type: {type(patience)}")
     
     model_dir = os.path.join(out_dir, 'models')
     log_dir = os.path.join(out_dir, 'logs')
@@ -136,8 +137,7 @@ def train_model(cfg):
             optimizer=opt, 
             mode='min', 
             factor=0.5,
-            patience=500,
-            verbose=True
+            patience=patience
         )
         sched = test_scheduler
         print("Using scheduler with verbose=True")
@@ -146,7 +146,7 @@ def train_model(cfg):
             optimizer=opt,
             mode='min',
             factor=0.5,
-            patience=500
+            patience=patience
         )
         print("Using scheduler without verbose parameter")
     
@@ -163,8 +163,8 @@ def train_model(cfg):
     
     print("Starting training...")
     for e in tqdm(range(1, epochs + 1)):
-        tl, tp, ts = train_epoch(model, tr_dl, opt, crit, dev)
-        vl, vp, vs = eval_model(model, ts_dl, crit, dev)
+        tl, tp, ts = train_epoch(model, tr_dl, opt, crit)
+        vl, vp, vs = eval_model(model, ts_dl, crit)
         
         tr_loss.append(tl)
         tr_pear.append(tp)
@@ -215,7 +215,7 @@ def train_model(cfg):
     np.savetxt(os.path.join(log_dir, f'tr_spear_f{fold}.csv'), np.array(tr_spear), delimiter=',')
     np.savetxt(os.path.join(log_dir, f'val_spear_f{fold}.csv'), np.array(val_spear), delimiter=',')
 
-    final_loss, final_pear, final_spear = eval_model(model, ts_dl, crit, dev)
+    final_loss, final_pear, final_spear = eval_model(model, ts_dl, crit)
     
     print(f"Final Test - Loss: {final_loss:.4f}, Pearson: {final_pear:.4f}, Spearman: {final_spear:.4f}")
     
@@ -250,15 +250,3 @@ def train_model(cfg):
         'best_val_spearman': best_val,
         'scaler': sc
     }
-
-if __name__ == "__main__":
-    import argparse
-    
-    parser = argparse.ArgumentParser(description='Train synergy model')
-    parser.add_argument('--config', type=str, required=True, help='Config YAML path')
-    args = parser.parse_args()
-    
-    with open(args.config, 'r') as f:
-        cfg = yaml.safe_load(f)
-    
-    train_model(cfg)

@@ -1,7 +1,7 @@
 import argparse
 import yaml
 from itertools import product
-from src.training.hyperparameter import run_grid_search
+from training.hyperparameter import run_grid_search
 
 def run_grid(fold, split, base_cfg):
 
