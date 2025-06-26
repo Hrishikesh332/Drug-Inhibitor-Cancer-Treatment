@@ -16,6 +16,8 @@ from explainability.shapley import run_shap_explanation
 from explainability.anchors import run_anchors
 from explainability.lrp import run_lrp_explanation
 
+from explainability.ig.run import run_integrated_gradients
+
 @dataclass
 class ModelAndDataConfig:
     name: str
@@ -100,7 +102,7 @@ def run_explanation(model, model_name, method, X_train, Y_train, X_test, Y_test,
                 )
 
     elif method == 'integrated_gradients':
-        raise NotImplementedError("Integrated gradients not yet implemented.")
+        run_integrated_gradients(model, model_name, X_train, Y_train, logger)
     else:
         raise ValueError(f"Unknown explanation method: {method}")
 
