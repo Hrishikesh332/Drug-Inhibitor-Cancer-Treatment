@@ -171,7 +171,7 @@ def run_grid_search(cfg):
     use_wb = cfg.get('use_wb', True)
     wb_proj = cfg.get('wb_proj', 'synergy-grid')
     max_ep = cfg.get('max_ep', 500)
-    patience = cfg.get('patience', 50)
+    patience = cfg.get('patience', 500)
     
     param_grid = {
         'lr': [float(lr) for lr in cfg.get('lr', [1e-5, 5e-5, 1e-4])],
