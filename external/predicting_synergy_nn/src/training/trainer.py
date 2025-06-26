@@ -1,5 +1,7 @@
 import os
 import time
+from typing import Literal
+
 import numpy as np
 import torch
 import torch.nn as nn
@@ -76,7 +78,7 @@ def eval_model(model, loader, crit):
     return avg_loss, avg_pear, spear.item()
 
 def train_model(cfg):
-    fold = int(cfg.get('fold', 1))
+    fold = str(cfg.get('fold', 1))
     arch = str(cfg.get('arch', 'std'))
     batch = int(cfg.get('batch', 100))
     lr = float(cfg.get('lr', 1e-4)) 

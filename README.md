@@ -139,6 +139,11 @@ python cli/run_k_fold_cross_validation.py --folds 1,2,3 --config configs/base.ya
 python cli/run_grid_search.py --folds 1,2,3 --splits 1,2,3 --config configs/grid.yaml
 ```
 
+- Final model training
+```bash
+python cli/train_model.py --config configs/base.yaml
+```
+
 ---
 
 ### Hyperparameter Tuning

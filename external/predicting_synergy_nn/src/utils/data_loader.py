@@ -1,24 +1,47 @@
 import os
-from typing import Tuple, Literal
+from typing import Tuple
 import numpy as np
 import pandas as pd
 import torch
 from torch.utils.data import DataLoader, TensorDataset, Dataset
 from sklearn.preprocessing import StandardScaler
+from typing import Literal
+
+TARGET_COL = 'ZIP'
+METADATA_COLS = ['Bliss', 'DRUG1', 'DRUG2', 'CELL_LINE']
 
 
-def load_data(dir_path, fold, target='ZIP', batch=100):
-    train = pd.read_csv(os.path.join(dir_path, f'fold{fold}/fold{fold}_alltrain.csv'), header=0)
-    test = pd.read_csv(os.path.join(dir_path, f'fold{fold}/fold{fold}_test.csv'), header=0)
+def _load_raw_train_data_for_fold(datapath: str, fold: int) -> pd.DataFrame:
+    path = os.path.join(datapath, f'fold{fold}/fold{fold}_alltrain.csv')
+    return pd.read_csv(path, header=0)
+
+def _load_raw_test_data_for_fold(datapath: str, fold: int) -> pd.DataFrame:
+    path = os.path.join(datapath, f'fold{fold}/fold{fold}_test.csv')
+    return pd.read_csv(path, header=0)
+
+def load_data(datapath: str, fold: Literal[1, 2, 3, 'all'], batch: int = 100):
+    if fold == 'all':
+        train_dfs = [_load_raw_train_data_for_fold(datapath, fold_) for fold_ in [1, 2, 3]]
+        test_dfs = [_load_raw_test_data_for_fold(datapath, fold_) for fold_ in [1, 2, 3]]
+        train_df = pd.concat(train_dfs)
+        test_df = pd.concat(test_dfs)
+    elif int(fold) in [1, 2, 3]:
+        train_df = _load_raw_train_data_for_fold(datapath, fold)
+        test_df = _load_raw_test_data_for_fold(datapath, fold)
+    else:
+        raise ValueError(f"Wrong argument for {fold=}. Please use 1, 2, 3, or 'all'.")
     
-    train = train.sample(frac=1)
-    test = test.sample(frac=1)
+    train_df = train_df.sample(frac=1)
+    test_df = test_df.sample(frac=1)
+
+    non_feature_cols = METADATA_COLS + [TARGET_COL]
+    feature_cols = [c for c in train_df.columns if c not in non_feature_cols]
     
-    x_tr = train.iloc[:, 0:33].values
-    y_tr = train[target].values.reshape(-1, 1)
+    x_tr = train_df.loc[:, feature_cols].values
+    y_tr = train_df[TARGET_COL].values.reshape(-1, 1)
     
-    x_ts = test.iloc[:, 0:33].values
-    y_ts = test[target].values.reshape(-1, 1)
+    x_ts = test_df.loc[:, feature_cols].values
+    y_ts = test_df[TARGET_COL].values.reshape(-1, 1)
     
     sc = StandardScaler()
     sc.fit(y_tr)
