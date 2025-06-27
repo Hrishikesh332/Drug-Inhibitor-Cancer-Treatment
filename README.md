@@ -60,6 +60,7 @@ For TranSynergy:
    conda install pytorch==2.4.1 cpuonly -c pytorch
    ```
 3. **Install project dependencies**:
+  (inside external\drug_combination)
    ```bash
    pip install -e .  # Installs the project in editable mode
    ```
@@ -82,7 +83,9 @@ This section provides instructions for downloading the synergy score dataset use
 Drug data is derived from DrugBank (drug-target interactions), ChEMBL (bioactivity data), and STRING (protein-protein interaction networks), encoding each drug as a binary vector representing interactions with 2401 selected genes. Cell line data is obtained from CCLE and GDSC (gene expression profiles) and Achilles and Sanger CRISPR (gene dependency scores), providing gene expression or dependency values for the same 2401 genes. Drug combination data, sourced from Merck drug synergy data, is structured as a matrix with three columns: two for drug profiles (binary vectors) and one for cell line features (gene expression or dependency, with a potential fourth column if both are included). The output is a continuous synergy score, indicating whether drug pairs are synergistic, additive, or antagonistic. This dataset enables the TranSynergy transformer-based model to predict synergy and deconvolve pathways via attention mechanisms.
 
 1. **Download synergy scores** (drug combination efficacy data):
+  (inside external\drug_combination)
    ```bash
+   pip install zenodo-get
    zenodo_get 10.5281/zenodo.4789936 -o ./data/synergy_score
    ```
 2. **Pull large files with Git LFS**:
