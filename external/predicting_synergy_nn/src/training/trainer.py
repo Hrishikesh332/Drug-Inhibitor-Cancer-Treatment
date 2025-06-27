@@ -1,6 +1,5 @@
 import os
 import time
-from typing import Literal
 
 import numpy as np
 import torch
@@ -91,6 +90,7 @@ def train_model(cfg):
     data_dir = str(cfg.get('data_dir', 'data'))
     out_dir = str(cfg.get('out_dir', 'outputs'))
     patience = int(cfg.get('patience', 500))
+    cell_line_encoding = cfg.get('cell_line_encoding')
     
     print("Configuration parameters:")
     print(f"  fold: {fold} (type: {type(fold)})")
@@ -100,6 +100,7 @@ def train_model(cfg):
     print(f"  epochs: {epochs} (type: {type(epochs)})")
     print(f"  drop: {drop} (type: {type(drop)})")
     print(f"  patience: {patience} (type: {type(patience)}")
+    print(f"  cell line encoding {cell_line_encoding} (type: {type(cell_line_encoding)})")
     
     model_dir = os.path.join(out_dir, 'models')
     log_dir = os.path.join(out_dir, 'logs')
@@ -124,7 +125,7 @@ def train_model(cfg):
                       'drop': drop
                   })
     
-    x_tr, y_tr, x_ts, y_ts, sc, tr_dl, ts_dl = load_data(data_dir, fold, batch=batch)
+    x_tr, y_tr, x_ts, y_ts, sc, tr_dl, ts_dl = load_data(data_dir, fold, batch=batch, cell_line_encoding=cell_line_encoding)
     print(f"Train shape: {x_tr.shape}, Test shape: {x_ts.shape}")
     
 
