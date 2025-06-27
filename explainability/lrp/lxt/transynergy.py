@@ -16,14 +16,17 @@ import torch.nn.functional as F
 from torch import cat, device
 from functools import partial
 from lxt.efficient.rules import divide_gradient, identity_rule_implicit, stop_gradient
-from lxt.efficient.patches import patch_method, replace_module, layer_norm_forward, dropout_forward
+from lxt.efficient.patches import patch_method, replace_module, dropout_forward
 
 import trans_synergy
-setting = trans_synergy.settings.get()
+from trans_synergy.models.trans_synergy import attention_model
 
+setting = trans_synergy.settings.get()
+use_cuda = torch.cuda.is_available()
 
 attnLRP = {
     torch.nn.Dropout: partial(patch_method, dropout_forward), # we patch dropout just in case if the user sets the model to train() mode
+    attention_model: partial(replace_module, sys.modules[__name__]),
 }
 
 
@@ -144,7 +147,7 @@ class OutputFeedForward(nn.Module):
         x = self.dropouts[0](x)
         x = self.linear_1(x)
         for i in range(self.n_layers-1):
-            x = F.relu(x)
+            x = identity_rule_implicit(F.relu, x) ### <------------------------------------------- LXT
             if not low_dim:
                 x = self.norms[i](x)
             x = self.dropouts[i+1](x)

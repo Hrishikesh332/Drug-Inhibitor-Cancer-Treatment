@@ -126,7 +126,7 @@ def main():
     model = load_model(args.model)
     model.eval()
 
-    X_train, Y_train = load_data(args.model)
+    X_train, Y_train = load_data(args.model, split='train')
     X_test, Y_test = load_data(args.model, split='test')
 
     run_explanation(model = model, 
