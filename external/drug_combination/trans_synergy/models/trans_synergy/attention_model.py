@@ -279,7 +279,8 @@ class TransposeMultiTransformersPlusLinear(TransposeMultiTransformers):
         )
         self.linear_only = linear_only
         self.classifier = classifier
-        if setting.neural_fp:
+        
+        if setting.neural_fp: # this is never used
             self.drug_fp_a = NeuralFingerprint(
                 setting.drug_input_dim["atom"],
                 setting.drug_input_dim["bond"],
@@ -307,15 +308,6 @@ class TransposeMultiTransformersPlusLinear(TransposeMultiTransformers):
         input_src_list = src_list
         input_trg_list = src_list[::]
         output_list = super().forward(input_src_list, input_trg_list, low_dim=low_dim)
-
-        if drugs is not None and self.drugs_on_the_side: # NOTE: drugs is by default None!
-            sub_drugs_a, sub_drugs_b = drugs[0], drugs[1]
-            drug_a_embed = self.drug_fp_a(sub_drugs_a)
-            drug_b_embed = self.drug_fp_b(sub_drugs_b)
-            if setting.neural_fp:
-                drug_a_embed = torch.sum(drug_a_embed, dim=1)
-                drug_b_embed = torch.sum(drug_b_embed, dim=1)
-            output_list += [drug_a_embed, drug_b_embed]
 
         cat_output = cat(tuple(output_list), dim=1)
         output = self.out(cat_output)

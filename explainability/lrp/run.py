@@ -9,7 +9,8 @@ from dataclasses import asdict
 
 from trans_synergy.utils import set_seed
 from explainability.lrp.config import LRPExplanationConfig
-from explainability.lrp.rules import explain_biomining
+from explainability.lrp.rules_biomining import explain_biomining
+from explainability.lrp.rules_transynergy import explain_transynergy
 from explainability.data_utils import select_representative_samples, reshape_transynergy_input
 
 
@@ -70,10 +71,13 @@ def run_lrp_explanation(
             )
     
     elif config.paper == "transynergy":
-        X_train_sample = reshape_transynergy_input(X_train_sample, logger, "X_train")
-        X_test_sample = reshape_transynergy_input(X_test_sample, logger, "X_test")
+        X_train = reshape_transynergy_input(X_train, logger, "X_train")
+        X_test = reshape_transynergy_input(X_test, logger, "X_test")
         
-        raise NotImplementedError("TransSynergy LRP explanation not implemented yet")
+        relevance  = explain_transynergy(
+                model=model,
+                inputs=X_test
+            )
     else:
         raise ValueError(f"Paper {config.paper} not supported")
     
