@@ -73,9 +73,9 @@ python cli/run_grid_search.py --folds 1,2,3 --splits 1,2,3 --config configs/grid
 ```
 
 ### 3 Training the Final Model
-Merges the folds and trains model on all training data, evaluates on all test data.
+Merges the folds and trains model on one fold.
 ```bash
-python cli/train_model.py --config configs/base.yaml
+python cli/train_model.py --config configs/base.yaml --fold 1
 ```
 
 ## Configuration Files

@@ -22,18 +22,13 @@ def _load_raw_test_data_for_fold(datapath: str, fold: int) -> pd.DataFrame:
 
 
 
-def load_data(datapath: str, fold: Literal[1, 2, 3, 'all'], cell_line_encoding: Literal['OHE', 'ordinal'] | None, batch: int = 100):
+def load_data(datapath: str, fold: Literal[1, 2, 3], cell_line_encoding: Literal['OHE', 'ordinal'] | None, batch: int = 100):
     # Load raw data
-    if fold == 'all':
-        train_dfs = [_load_raw_train_data_for_fold(datapath, fold_) for fold_ in [1, 2, 3]]
-        test_dfs = [_load_raw_test_data_for_fold(datapath, fold_) for fold_ in [1, 2, 3]]
-        train_df = pd.concat(train_dfs)
-        test_df = pd.concat(test_dfs)
-    elif int(fold) in [1, 2, 3]:
+    if int(fold) in [1, 2, 3]:
         train_df = _load_raw_train_data_for_fold(datapath, fold)
         test_df = _load_raw_test_data_for_fold(datapath, fold)
     else:
-        raise ValueError(f"Invalid argument for {fold=}. Please use 1, 2, 3, or 'all'.")
+        raise ValueError(f"Invalid argument for {fold=}. Please use 1, 2, or 3.")
 
     # Shuffle
     train_df = train_df.sample(frac=1)
