@@ -90,7 +90,7 @@ def train_model(cfg):
     data_dir = str(cfg.get('data_dir', 'data'))
     out_dir = str(cfg.get('out_dir', 'outputs'))
     patience = int(cfg.get('patience', 500))
-    cell_line_encoding = cfg.get('cell_line_encoding')
+    cell_line_encoding = cfg.get('cell_line_encoding', 'ordinal')
     
     print("Configuration parameters:")
     print(f"  fold: {fold} (type: {type(fold)})")

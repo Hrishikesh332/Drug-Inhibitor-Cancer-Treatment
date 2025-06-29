@@ -56,10 +56,10 @@ def load_data(datapath: str, fold: Literal[1, 2, 3], cell_line_encoding: Literal
     non_feature_cols = METADATA_COLS + [TARGET_COL]
     feature_cols = [c for c in train_df.columns if c not in non_feature_cols]
 
-    x_tr = train_df.loc[:, feature_cols].values
+    x_tr = train_df.loc[:, feature_cols].astype(np.float32).values
     y_tr = train_df[TARGET_COL].values.reshape(-1, 1)
     
-    x_ts = test_df.loc[:, feature_cols].values
+    x_ts = test_df.loc[:, feature_cols].astype(np.float32).values
     y_ts = test_df[TARGET_COL].values.reshape(-1, 1)
 
     # Scaling
