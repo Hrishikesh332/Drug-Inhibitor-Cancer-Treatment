@@ -21,6 +21,10 @@ class ExplainationConfig:
                 raise ValueError("Please provide path to the features parquet file for paper transynergy")
             X_df = pd.read_parquet(self.transynergy_features_parquet_path)
             self.feature_names = X_df.columns
-            self.feature_length = X_df.shape[0]
+            num_cols = X_df.shape[1]
+            if num_cols % 3 != 0:
+                raise ValueError("The number of columns for the transynergy data has to be divisible by 3 - "
+                                 "in order to account for fisrt drug, second drug, and the cell lines!")
+            self.feature_length = X_df.shape[1] // 3
         else:
             raise ValueError(f"Unknown paper={self.paper}")
