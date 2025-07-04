@@ -107,11 +107,14 @@ ForBiomining data can be found at this location `external/predicting_synergy_nn/
 ### Training
 **TranSynergy**:
 
-Run training with different feature types:
+Run training with different feature types: 
+*Note: You need to run this from the root directory*
 ```bash
-python main.py --settings_choice='gene_dependency'  # Uses gene dependency features
-python main.py --settings_choice='gene_expression'  # Uses gene expression profiles
-python main.py --settings_choice='netexpress'       # Uses network-based expression
+python external/drug_combination/main.py --settings_choice='gene_dependency'  # Uses gene dependency features
+python external/drug_combination/main.py --settings_choice='gene_expression'  # Uses gene expression profiles
+python external/drug_combination/main.py --settings_choice='netexpress'       # Uses network-based expression
+```
+
 ```
 
 Here is how you can check your result: [Transynergy Result](./external/drug_combination/README.md)
