@@ -47,7 +47,7 @@ def run_activation_maximization(
         seed = trial
         set_seed(trial)
 
-        input_tensor = torch.randn(input_shape, requires_grad=True, device=device)
+        input_tensor = torch.randn(input_shape, requires_grad=True, device=device) * 0.00001
         
         if config.paper == "transynergy":
             input_tensor = input_tensor.view(1, 3, config.feature_length).clone().detach().requires_grad_(True)

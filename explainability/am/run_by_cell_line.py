@@ -35,8 +35,8 @@ def run_activation_maximization_for_cell_line(
     if isinstance(X, np.ndarray):
         X = torch.tensor(X)
     # Regularize to the input space 
-    real_mean = X.mean(0, keepdim=True)
-    real_std = X.std(0, keepdim=True)
+    real_mean = X.mean(0, keepdim=True, dtype = torch.float32)
+    real_std = X.std(0, keepdim=True).to(torch.float32)
     
     config = ActivationMaximizationConfig(paper=paper, input_bounds=input_bounds, **kwargs)
     minimax = "max" if config.maximize else "min"
@@ -51,22 +51,25 @@ def run_activation_maximization_for_cell_line(
         seed = trial
         set_seed(trial)
 
-        input_tensor = torch.randn(input_shape, requires_grad=True, device=device)
+        input_tensor = torch.randn(input_shape, device=device) * 0.00001
         
         if config.paper == "transynergy":
-            input_tensor = input_tensor.view(1, 3, config.feature_length).clone().detach().requires_grad_(True)
+            input_tensor = input_tensor.view(1, 3, config.feature_length).clone().detach()
             real_mean = real_mean.view(1, 3, config.feature_length)
             real_std = real_std.view(1, 3, config.feature_length) + epsilon
             mask = torch.ones_like(input_tensor, dtype=torch.bool, device=device) 
-            mask[0, 2, frozen_indices] = False
+            mask[0, 2, :] = False
+            input_tensor[0, 2, :] = real_mean[0, 2, :]  # set cell line features to mean
         elif config.paper == "biomining":
-            input_tensor = input_tensor.view(1, config.feature_length).clone().detach().requires_grad_(True)
+            input_tensor = input_tensor.view(1, config.feature_length).clone().detach()
             real_mean = real_mean.view(1, config.feature_length)
             real_std = real_std.view(1, config.feature_length) + epsilon
             frozen_indices = torch.arange(26, 33)  # those define the cell-line!
             mask = torch.ones_like(input_tensor, dtype=torch.bool, device=device) 
             mask[:, frozen_indices] = False
+            input_tensor[mask] = real_mean[mask] # set cell line features to mean
 
+        input_tensor.requires_grad = True
         optimizer = torch.optim.Adam([input_tensor], lr=config.lr)
 
         best_val = float("-inf") if config.maximize else float("inf")
@@ -117,7 +120,7 @@ def run_activation_maximization_for_cell_line(
         img_or_tensor = original_best_input.detach().cpu().numpy()
         
         regularization_method = config.regularization if config.regularization else "none"
-        save_path = f"explainability/am/results/{paper}_{cell_line}_{minimax}_reg_{regularization_method}/best_input_trial_{trial}.pt"
+        save_path = f"explainability/am/results/by_cell_line/{paper}_{cell_line}_{minimax}_reg_{regularization_method}/best_input_trial_{trial}.pt"
         
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
         

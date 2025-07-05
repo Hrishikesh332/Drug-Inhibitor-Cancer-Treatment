@@ -95,7 +95,7 @@ def run_explanation(model, model_name, method, X_train, Y_train, X_test, Y_test,
                             num_explanations=1000,
                         )
     elif method == 'activation_max':
-        for regularization in [None, "l2", "l1", "l2_input"]: 
+        for regularization in ["l2_input", "l2", "l1", None]: # TODO: nina fix
             for maximize in [True, False]:
                 logger.info(f"Running activation maximization with regularization={regularization}, maximize={maximize}")
                 run_activation_maximization(
@@ -107,7 +107,7 @@ def run_explanation(model, model_name, method, X_train, Y_train, X_test, Y_test,
                     maximize = maximize,
                 )
         # Run activation maximization for each cell line
-        for regularization in [None, "l2", "l1", "l2_input"]:
+        for regularization in ["l2_input"]:
                 logger.info(f"Running activation maximization by cell_line with regularization={regularization}")
                 run_activation_maximization_by_cell_line(
                     model = model, 
