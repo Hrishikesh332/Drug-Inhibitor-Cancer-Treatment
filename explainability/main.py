@@ -1,3 +1,18 @@
+"""
+Main file for running explainability methods on model outputs.
+
+This script provides functionality to run various explainability techniques, including:
+- Activation Maximization
+- SHAP
+- Anchors (works only on Biomining model)
+- Integrated Gradients
+- Layer-wise Relevance Propagation (LRP)
+
+Usage Example:
+---
+To run activation maximization on the 'transynergy' model:
+(trans_synergy) [root_of_project] python -m explainability.main --model transynergy --method activation_max
+"""
 import argparse
 import logging
 from typing import Callable
@@ -29,7 +44,7 @@ MODEL_DATA_REGISTRY = {
     "biomining": ModelAndDataConfig(
         name="biomining",
         model_loader=load_biomining_model,
-        model_path="external/predicting_synergy_nn/outputs/models/best_f1.pt",
+        model_path="external/predicting_synergy_nn/outputs/models/final_f1.pt",
         data_loader=load_biomining_data
     ),
     "transynergy": ModelAndDataConfig(
@@ -113,7 +128,7 @@ def main():
     
     parser.add_argument('--model', 
                         type=str, 
-                        default='biomining',
+                        default='transynergy',
                         choices=MODEL_DATA_REGISTRY.keys(),
                         help='Which model to explain')
     parser.add_argument('--method', 
