@@ -6,7 +6,7 @@ from logging import Logger
 import torch
 import numpy as np
 import wandb
-from tqdm import trange
+from tqdm import trange, tqdm 
 
 from trans_synergy.utils import set_seed
 from explainability.utils import save_with_wandb
@@ -41,7 +41,7 @@ def run_activation_maximization_for_cell_line(
     config = ActivationMaximizationConfig(paper=paper, input_bounds=input_bounds, **kwargs)
     minimax = "max" if config.maximize else "min"
     
-    wandb.init(project=f"EXPLAINABILITY on {config.paper} (cell line: {cell_line}) activation-maximization ({minimax})", 
+    wandb.init(project=f"EXPLAINABILITY on {config.paper} (cell line -{cell_line}) activation-maximization ({minimax})", 
                config=asdict(config),
                name=f"{paper}_{minimax}_activation_maximization_reg_{config.regularization}",)
 
@@ -52,19 +52,20 @@ def run_activation_maximization_for_cell_line(
         set_seed(trial)
 
         input_tensor = torch.randn(input_shape, requires_grad=True, device=device)
-        mask = torch.ones_like(input_tensor, dtype=torch.bool, device=device) 
+        
         if config.paper == "transynergy":
             input_tensor = input_tensor.view(1, 3, config.feature_length).clone().detach().requires_grad_(True)
             real_mean = real_mean.view(1, 3, config.feature_length)
             real_std = real_std.view(1, 3, config.feature_length) + epsilon
+            mask = torch.ones_like(input_tensor, dtype=torch.bool, device=device) 
             mask[0, 2, frozen_indices] = False
         elif config.paper == "biomining":
             input_tensor = input_tensor.view(1, config.feature_length).clone().detach().requires_grad_(True)
             real_mean = real_mean.view(1, config.feature_length)
             real_std = real_std.view(1, config.feature_length) + epsilon
             frozen_indices = torch.arange(26, 33)  # those define the cell-line!
-            mask[..., frozen_indices] = False
-            
+            mask = torch.ones_like(input_tensor, dtype=torch.bool, device=device) 
+            mask[:, frozen_indices] = False
 
         optimizer = torch.optim.Adam([input_tensor], lr=config.lr)
 
@@ -149,7 +150,7 @@ def run_activation_maximization_by_cell_line(
     
     # get unique cell_line names
     unique_cell_line_names = set(cell_lines_names)
-    for cell_line_name in unique_cell_line_names:
+    for cell_line_name in tqdm(unique_cell_line_names, desc="Processing Cell Lines"):
         cell_line_mask = cell_lines_names == cell_line_name
         X_cell_line = X[cell_line_mask]
         
@@ -158,8 +159,10 @@ def run_activation_maximization_by_cell_line(
             paper,
             X_cell_line,
             logger,
-            cell_line_name
+            cell_line_name,
+            regularization=regularization,
+            maximize=maximize
         )
-        
+            
         
         

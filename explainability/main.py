@@ -26,7 +26,7 @@ from explainability.data_utils import (
     load_transynergy_data,
     load_biomining_data
 )
-from explainability.am import run_activation_maximization
+from explainability.am import run_activation_maximization, run_activation_maximization_by_cell_line
 from explainability.shapley import run_shap_explanation
 from explainability.anchors import run_anchors
 from explainability.lrp import run_lrp_explanation
@@ -95,7 +95,7 @@ def run_explanation(model, model_name, method, X_train, Y_train, X_test, Y_test,
                             num_explanations=1000,
                         )
     elif method == 'activation_max':
-        for regularization in [None, "l2", "l1", "l2_input"]:
+        for regularization in [None, "l2", "l1", "l2_input"]: 
             for maximize in [True, False]:
                 logger.info(f"Running activation maximization with regularization={regularization}, maximize={maximize}")
                 run_activation_maximization(
@@ -105,6 +105,18 @@ def run_explanation(model, model_name, method, X_train, Y_train, X_test, Y_test,
                     logger = logger,
                     regularization = regularization,
                     maximize = maximize,
+                )
+        # Run activation maximization for each cell line
+        for regularization in [None, "l2", "l1", "l2_input"]:
+                logger.info(f"Running activation maximization by cell_line with regularization={regularization}")
+                run_activation_maximization_by_cell_line(
+                    model = model, 
+                    paper = model_name, 
+                    X = X_train,
+                    logger = logger,
+                    regularization = regularization,
+                    maximize = True, # only interested in maximally activating the model per cell_line
+                    split='train'
                 )
     elif method == 'lrp':
         logger.info(f"Running LRP")
@@ -128,7 +140,7 @@ def main():
     
     parser.add_argument('--model', 
                         type=str, 
-                        default='transynergy',
+                        default='biomining',
                         choices=MODEL_DATA_REGISTRY.keys(),
                         help='Which model to explain')
     parser.add_argument('--method', 
