@@ -1,53 +1,87 @@
+from typing import Literal, Tuple, Optional
+from logging import Logger
+import os
+
+import numpy as np
 import torch
-import torch.nn as nn
-from tqdm import tqdm 
+import wandb
+from dataclasses import asdict
 
-from zennit.core import Composite
-from zennit.rules import Epsilon, Gamma, Pass, ZBox
-from zennit.canonizers import NamedMergeBatchNorm
-CompositeType = Composite 
+from trans_synergy.utils import set_seed
+from explainability.lrp.config import LRPExplanationConfig
+from explainability.lrp.rules_biomining import explain_biomining
+from explainability.lrp.rules_transynergy import explain_transynergy
+from explainability.data_utils import select_representative_samples, reshape_transynergy_input
 
 
-def lrp_rule_for_biomining(ctx, name, module):
-    if isinstance(module, nn.Linear):
-        return Gamma(zero_params =['bias'])
-    elif isinstance(module, nn.BatchNorm1d) or isinstance(module, nn.Tanh) or isinstance(module, nn.Dropout) or isinstance(module, nn.ReLU):  # for all other layers, e.g. BatchNorm1d
-        # activations are ignore just as https://zennit.readthedocs.io/en/0.4.4/how-to/use-rules-composites-and-canonizers.html 
-        return Pass()
-    else:
-        pass
-        
-def explain_biomining(
+def run_lrp_explanation(
     model: torch.nn.Module,
-    inputs: torch.Tensor
-) -> torch.Tensor:
-    """Run LRP explanation on Biomining model for regression task.
+    paper: Literal["biomining", "transynergy"],
+    X_train: torch.Tensor,
+    X_test: torch.Tensor,
+    logger: Logger,
+    **kwargs
+) -> Tuple[torch.Tensor, torch.Tensor]:
+    """Run LRP explanation on the specified model.
     
     Args:
-        model: The Biomining model
-        inputs: Input tensor (drug features, cell line features)
-        composite: Optional pre-created composite. If None, will create default one
+        model: The model to explain
+        paper: Which paper's model to explain ("biomining" or "transynergy")
+        X_train: Training data tensor
+        X_test: Test data tensor
+        logger: Logger instance
+        **kwargs: Additional arguments passed to create_transynergy_composite
         
     Returns:
-        Tuple of relevance scores
+        Tuple of (model outputs, relevance scores) for test data
     """
-    composite = Composite(module_map=lrp_rule_for_biomining,
-                          canonizers=[NamedMergeBatchNorm([(['net.0'], 'net.1'),
-                                                            (['net.4'], 'net.5'),
-                                                            (['net.8'], 'net.9'),
-                                                            (['net.12'], 'net.13'),
-                                                            (['net.16'], 'net.17')])]
-                          )
-
+    config = LRPExplanationConfig(paper=paper, **kwargs)
+    device = next(model.parameters()).device
+    set_seed(config.seed)
+    
+    wandb.init(
+        project=f"EXPLAINABILITY on {config.paper} LRP",
+        config=asdict(config),
+        name=f"{paper}_lrp",
+    )
+    
     model.eval()
-    relevances = []
-    with composite.context(model) as modified_model:
-        for i in tqdm(range(inputs.shape[0]), desc="LRP samples"):
-            inp = inputs[i, :].unsqueeze(0).clone().detach().requires_grad_(True)
-            out = model(inp)
-            out.backward()
+    model = model.to(device)
+    
+    logger.info(f"Running LRP explanation for model: {config.paper}")
+    results_dir = f"explainability/lrp/results/{config.paper}_subsample_{config.subsample}"
+    
+    if isinstance(X_train, np.ndarray):
+        X_train = torch.tensor(X_train, dtype=torch.float32)
+    if isinstance(X_test, np.ndarray):
+        X_test = torch.tensor(X_test, dtype=torch.float32)
 
-            relevances.append(inp.grad.detach().cpu())
+    X_train = X_train.to(device)
+    X_test = X_test.to(device)
+    
+    if config.subsample:
+        X_train = select_representative_samples(X_train, config.num_samples)
+        X_test = select_representative_samples(X_test, config.num_samples)
         
-    tensor_relevances= torch.cat(relevances, dim=0)
-    return tensor_relevances
+    if config.paper == "biomining":
+        logger.info("Computing absolute LRP explanations")
+        relevance  = explain_biomining(
+                model=model,
+                inputs=X_test
+            )
+    elif config.paper == "transynergy":
+        X_train = reshape_transynergy_input(X_train, logger, "X_train")
+        X_test = reshape_transynergy_input(X_test, logger, "X_test")
+        
+        relevance  = explain_transynergy(
+                model=model,
+                inputs=X_test
+            )
+    else:
+        raise ValueError(f"Paper {config.paper} not supported")
+    
+    os.makedirs(results_dir, exist_ok=True)
+    np.save(f"{results_dir}/relevances.npy", relevance.detach().cpu().numpy())
+    
+    
+    

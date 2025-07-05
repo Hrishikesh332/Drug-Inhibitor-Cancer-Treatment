@@ -217,6 +217,16 @@ python -m explainability.main --model transynergy --method integrated_gradients
 python -m explainability.shapley.gsea --paper biomining
 ```
 
+### ⚠️ **Caution: Large File Notice** ⚠️  
+Some result files are too large to upload via Git. For those, please use the provided Google Drive links instead.
+
+**TransSynergy LRP Relevances**  
+Paste the downloaded file under:  
+`explainability/lrp/results/transynergy_subsample_False`
+
+🔗 [Download from Google Drive](https://drive.google.com/file/d/15CLzOmeJk0-FpqtSNumrjJMNG1JBFKDq/view?usp=sharing)
+
+
 ---
 
 ## References

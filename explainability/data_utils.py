@@ -39,7 +39,11 @@ def load_transynergy_data(split: Literal['train', 'test'] = 'train'):
     X_res = X[partition_indices[split]]
     Y_res = Y[partition_indices[split]]
     
-    return X_res, Y_res
+    X_res_perturbed = np.concatenate((X_res[:, 2402:4804], X_res[:, 0:2402], X_res[:, 4804:]), axis=1)
+    X_final = np.concatenate((X_res, X_res_perturbed), axis=0)
+    Y_final = np.concatenate((Y_res, Y_res), axis=0)
+    
+    return X_final, Y_final
 
 def load_transynergy_cell_line_data(split: Literal['train', 'test'] = 'train'):
     """
@@ -64,6 +68,31 @@ def load_transynergy_cell_line_data(split: Literal['train', 'test'] = 'train'):
     
     handler = trans_synergy.data.trans_synergy_data.SynergyDataReader
     cell_lines = handler.get_synergy_data_cell_lines_by_indices(split_indices) 
+    return  cell_lines
+
+
+def load_transynergy_drug_names(split: Literal['train', 'test'] = 'train'):
+    """
+    Load the Transynergy drug names from the specified path.
+    """
+    split_func = trans_synergy.data.trans_synergy_data.DataPreprocessor.regular_train_eval_test_split
+    partition = split_func(fold_col_name="fold", test_fold=4, evaluation_fold=0)
+    partition_indices = {
+        'train': partition[0],
+        'test1': partition[1],
+        'test2': partition[2],
+        'eval1': partition[3],
+        'eval2': partition[4]
+    }
+    
+    if split == 'test':
+        # returns test1 just like load data for explainability
+        split_indices = partition_indices['test1']
+    else:
+        split_indices = partition_indices[split]
+    
+    handler = trans_synergy.data.trans_synergy_data.SynergyDataReader
+    cell_lines = handler.get_synergy_data_drug_names_by_indices(split_indices) 
     return  cell_lines
 
 
