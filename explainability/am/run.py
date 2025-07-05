@@ -12,6 +12,9 @@ from trans_synergy.utils import set_seed
 from explainability.utils import save_with_wandb
 from explainability.am.config import ActivationMaximizationConfig
 
+
+epsilon = 1e-6
+
 def run_activation_maximization(
     model: torch.nn.Module,
     paper: Literal["biomining", "transynergy"],
@@ -48,8 +51,12 @@ def run_activation_maximization(
         
         if config.paper == "transynergy":
             input_tensor = input_tensor.view(1, 3, config.feature_length).clone().detach().requires_grad_(True)
+            real_mean = real_mean.view(1, 3, config.feature_length)
+            real_std = real_std.view(1, 3, config.feature_length) + epsilon
         elif config.paper == "biomining":
             input_tensor = input_tensor.view(1, config.feature_length).clone().detach().requires_grad_(True)
+            real_mean = real_mean.view(1, config.feature_length)
+            real_std = real_std.view(1, config.feature_length) + epsilon 
 
         optimizer = torch.optim.Adam([input_tensor], lr=config.lr)
 
