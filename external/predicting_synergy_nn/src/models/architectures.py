@@ -1,7 +1,7 @@
 import torch.nn as nn
 
 class SynergyModel(nn.Module):
-    def __init__(self, in_dim, arch='std', drop=0.3):
+    def __init__(self, in_dim, arch='fold2', drop=0.3):
         super(SynergyModel, self).__init__()
         
         if arch == 'std':
