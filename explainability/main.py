@@ -80,7 +80,7 @@ def run_explanation(model, model_name, method, X_train, Y_train, X_test, Y_test,
                             num_explanations=1000,
                         )
     elif method == 'activation_max':
-        for regularization in [None, "l2", "l1"]:
+        for regularization in [None, "l2", "l1", "l2_input"]:
             for maximize in [True, False]:
                 logger.info(f"Running activation maximization with regularization={regularization}, maximize={maximize}")
                 run_activation_maximization(
@@ -118,7 +118,7 @@ def main():
                         help='Which model to explain')
     parser.add_argument('--method', 
                         type=str, 
-                        default='lrp',
+                        default='activation_max',
                         choices=['shap', 'anchors', 'activation_max', 'integrated_gradients', 'lrp'],
                         help='Which explainability method to use')
 

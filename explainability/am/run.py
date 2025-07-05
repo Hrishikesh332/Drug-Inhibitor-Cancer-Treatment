@@ -4,6 +4,7 @@ from typing import Literal
 from logging import Logger
 
 import torch
+import numpy as np
 import wandb
 from tqdm import trange
 
@@ -23,6 +24,12 @@ def run_activation_maximization(
     input_bounds = (input_min, input_max)
     
     input_shape = X[0].shape
+    
+    if isinstance(X, np.ndarray):
+        X = torch.tensor(X)
+    # Regularize to the input space 
+    real_mean = X.mean(0, keepdim=True)
+    real_std = X.std(0, keepdim=True)
     
     config = ActivationMaximizationConfig(paper=paper, input_bounds=input_bounds, **kwargs)
     minimax = "max" if config.maximize else "min"
@@ -62,6 +69,8 @@ def run_activation_maximization(
                 loss += config.l1_lambda * input_tensor.abs().sum()
             elif config.regularization == "l2":
                 loss += config.l2_lambda * input_tensor.norm(p=2)
+            elif config.regularization == "l2_input":
+                loss += config.l2_lambda *  ((input_tensor - real_mean) / real_std).pow(2).mean()
 
             loss.backward()
             optimizer.step()
@@ -70,7 +79,7 @@ def run_activation_maximization(
                        f"trial_{trial}/output": out_val,
                        "step": step})
 
-            with torch.no_grad():
+            with torch.no_grad(): 
                 input_tensor.clamp_(*config.input_bounds)
 
                 current_val = out_val.item()
