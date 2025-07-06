@@ -37,8 +37,8 @@ def load_transynergy_data(split: Literal['train', 'test'] = 'train'):
     std_scaler.fit(Y[partition_indices['train']])
     Y = std_scaler.transform(Y)
     
-    X_res = X[partition_indices['train']]
-    Y_res = Y[partition_indices['train']]
+    X_res = X[partition_indices[split]]
+    Y_res = Y[partition_indices[split]]
 
     return X_res, Y_res
 
