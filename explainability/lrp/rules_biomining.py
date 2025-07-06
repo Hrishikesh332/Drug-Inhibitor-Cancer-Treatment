@@ -34,9 +34,7 @@ def explain_biomining(
     composite = Composite(module_map=lrp_rule_for_biomining,
                           canonizers=[NamedMergeBatchNorm([(['net.0'], 'net.1'),
                                                             (['net.4'], 'net.5'),
-                                                            (['net.8'], 'net.9'),
-                                                            (['net.12'], 'net.13'),
-                                                            (['net.16'], 'net.17')])] # depends on architecture used TODO: change!
+                                                            (['net.8'], 'net.9')])],
                           )
 
     model.eval()
