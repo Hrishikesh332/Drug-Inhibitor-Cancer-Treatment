@@ -1,4 +1,4 @@
-fold: 1
+
 arch: std
 batch: 100
 lr: 0.0001
@@ -8,20 +8,25 @@ log_every: 10
 use_wb: true
 wb_proj: synergy
 data_dir: data
-out_dir: outputs
 
 # Options - 'random', 'cell_line', 'drug'
 cv_strategy: random
 
 cell_line_col: null  #  'CELL_LINE', 'cell_line_id', 'cellline'
-drug_col: null       #  'DRUG_ID', 'compound_id', 'drug_name'
 
 feature_columns: '0:33' 
 target_column: 'ZIP'
 
 
-grid_search:
-  max_ep: 500
-  lr: [1e-5, 5e-5, 1e-4, 5e-4]
-  arch: [std, fold2, fold3]
-  drop: [0.3, 0.5]
+
+# Random CV 
+# cv_strategy: random
+# cell_line_col: null
+#
+# Cell line out CV
+# cv_strategy: cell_line
+# cell_line_col: CELL_LINE
+#
+# Drug out CV 
+# cv_strategy: drug
+# cell_line_col: null

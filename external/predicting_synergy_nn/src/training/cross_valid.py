@@ -1,269 +1,170 @@
 import os
-import pandas as pd
 import numpy as np
 import torch
+import torch.nn as nn
+import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import GroupKFold
-from typing import Tuple, Union, List, Optional
-import warnings
+from tqdm import tqdm
+from src.models.architectures import SynergyModel
+from src.models.metrics import calc_pearson, calc_spearman
 
-class UnifiedCrossValidator:
-    
-    def __init__(self, data_dir: str, cv_strategy: str = 'random', 
-                 cell_line_col: str = None, drug_col: str = None):
-        self.data_dir = data_dir
-        self.cv_strategy = cv_strategy
-        self.cell_line_col = cell_line_col
-        self.drug_col = drug_col
-        self._analyzed = False
-        self._data_cache = None
-        
-    def _load_all_data(self) -> pd.DataFrame:
-        if self._data_cache is not None:
-            return self._data_cache
-            
-        all_data = []
-        for fold in [1, 2, 3]:
-            fold_dir = os.path.join(self.data_dir, f'fold{fold}')
-            if os.path.exists(fold_dir):
-                train_file = os.path.join(fold_dir, f'fold{fold}_alltrain.csv')
-                if os.path.exists(train_file):
-                    train_df = pd.read_csv(train_file)
-                    train_df['original_fold'] = fold
-                    train_df['original_split'] = 'train'
-                    all_data.append(train_df)
-                
-                test_file = os.path.join(fold_dir, f'fold{fold}_test.csv')
-                if os.path.exists(test_file):
-                    test_df = pd.read_csv(test_file)
-                    test_df['original_fold'] = fold
-                    test_df['original_split'] = 'test'
-                    all_data.append(test_df)
-        
-        if not all_data:
-            raise FileNotFoundError("No data files found in the specified directory")
-        
-        combined_data = pd.concat(all_data, ignore_index=True)
-        self._data_cache = combined_data
-        return combined_data
-    
-    def _auto_detect_columns(self, df: pd.DataFrame):
-        if not self._analyzed:
-            columns = df.columns.tolist()
-            
-            if self.cell_line_col is None:
-                cell_candidates = []
-                for col in columns:
-                    col_lower = col.lower()
-                    if any(keyword in col_lower for keyword in ['cell', 'line', 'cellline']):
-                        unique_count = df[col].nunique()
-                        total_count = len(df)
-                        if 5 <= unique_count <= total_count * 0.5:
-                            cell_candidates.append((col, unique_count))
-                
-                if cell_candidates:
-                    self.cell_line_col = max(cell_candidates, key=lambda x: x[1])[0]
-                    print(f"Auto-detected cell line column: {self.cell_line_col}")
-            
-            if self.drug_col is None:
-                drug_candidates = []
-                for col in columns:
-                    col_lower = col.lower()
-                    if any(keyword in col_lower for keyword in ['drug', 'compound', 'agent']):
-                        unique_count = df[col].nunique()
-                        total_count = len(df)
-                        if 5 <= unique_count <= total_count * 0.8: 
-                            drug_candidates.append((col, unique_count))
-                
-                if drug_candidates:
-                    self.drug_col = max(drug_candidates, key=lambda x: x[1])[0]
-                    print(f"Auto-detected drug column: {self.drug_col}")
-            
-            self._analyzed = True
-    
-    def _create_groups(self, df: pd.DataFrame) -> np.ndarray:
-        if self.cv_strategy == 'cell_line':
-            if self.cell_line_col is None or self.cell_line_col not in df.columns:
-                warnings.warn(f"Cell line column '{self.cell_line_col}' not found. Falling back to random CV.")
-                return np.random.randint(0, 3, size=len(df))
-            return df[self.cell_line_col].astype(str).values
-        
-        elif self.cv_strategy == 'drug':
-            if self.drug_col is None or self.drug_col not in df.columns:
-                warnings.warn(f"Drug column '{self.drug_col}' not found. Falling back to random CV.")
-                return np.random.randint(0, 3, size=len(df))
-            return df[self.drug_col].astype(str).values
-        
-        else:  # random
-            return np.random.randint(0, 3, size=len(df))
-    
-    def get_fold_data(self, fold: int, feature_cols: str = '0:33', 
-                     target_col: str = 'ZIP', batch_size: int = 100) -> Tuple:
 
-        df = self._load_all_data()
-        self._auto_detect_columns(df)
-        
-        if ':' in feature_cols:
-            start, end = map(int, feature_cols.split(':'))
-            feature_columns = list(range(start, end))
-        else:
-            feature_columns = feature_cols.split(',')
-        
-        groups = self._create_groups(df)
-        
-        if self.cv_strategy == 'random':
-            train_mask = df['original_fold'] != fold
-            test_mask = df['original_fold'] == fold
-        else:
-            unique_groups = np.unique(groups)
-            n_splits = min(3, len(unique_groups))
-            
-            if n_splits < 3:
-                warnings.warn(f"Only {n_splits} groups found. Using random splits.")
-                train_mask = df['original_fold'] != fold
-                test_mask = df['original_fold'] == fold
-            else:
-                gkf = GroupKFold(n_splits=n_splits)
-                splits = list(gkf.split(df, groups=groups))
-                train_idx, test_idx = splits[fold - 1]
-                train_mask = df.index.isin(train_idx)
-                test_mask = df.index.isin(test_idx)
-        
-        train_df = df[train_mask]
-        test_df = df[test_mask]
-        
-        if isinstance(feature_columns[0], int):
-            x_train = train_df.iloc[:, feature_columns].values
-            x_test = test_df.iloc[:, feature_columns].values
-        else:
-            x_train = train_df[feature_columns].values
-            x_test = test_df[feature_columns].values
-        
-        y_train = train_df[target_col].values.reshape(-1, 1)
-        y_test = test_df[target_col].values.reshape(-1, 1)
-        
-        scaler = StandardScaler()
-        y_train = scaler.fit_transform(y_train)
-        y_test = scaler.transform(y_test)
-        
+def load_cv_split(split, data_dir, feature_cols='0:33', target_col='ZIP', batch=100, cv_strategy='random', cell_line_col=None, drug_col=None):
+
+    import pandas as pd
+    train = None
+    for i in range(1, 4):
+        path = os.path.join(data_dir, 'fold2', 'validation', f'fold2_train{i}.csv')
+        if split == i:
+            valid = os.path.join(data_dir, 'fold2', 'validation', f'fold2_valid{i}.csv')
+            train = pd.read_csv(path)
+            valid = pd.read_csv(valid)
+            break
+    if train is None:
+        raise ValueError('Invalid split for fold2')
+    # Feature selection
+    if ':' in feature_cols:
+        start, end = map(int, feature_cols.split(':'))
+        feature_columns = list(range(start, end))
+    else:
+        feature_columns = feature_cols.split(',')
+    x_tr = train.iloc[:, feature_columns].values if isinstance(feature_columns[0], int) else train[feature_columns].values
+    y_tr = train[target_col].values.reshape(-1, 1)
+    x_val = valid.iloc[:, feature_columns].values if isinstance(feature_columns[0], int) else valid[feature_columns].values
+    y_val = valid[target_col].values.reshape(-1, 1)
+
+    if cv_strategy == 'cell_line':
+        groups = train[cell_line_col].astype(str).values
+    elif cv_strategy == 'drug':
+
+
+        drugs = pd.concat([train['DRUG1'], train['DRUG2']]).unique()
+
+        train_groups = train.apply(lambda row: tuple(sorted([row['DRUG1'], row['DRUG2']])), axis=1)
+        groups = train_groups.astype(str).values
+    else:
+        groups = None
+
+    scaler = StandardScaler()
+    y_tr = scaler.fit_transform(y_tr)
+    y_val = scaler.transform(y_val)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    x_tr_t = torch.FloatTensor(x_tr).to(device)
+    y_tr_t = torch.FloatTensor(y_tr).to(device)
+    x_val_t = torch.FloatTensor(x_val).to(device)
+    y_val_t = torch.FloatTensor(y_val).to(device)
+    tr_ds = TensorDataset(x_tr_t, y_tr_t)
+    val_ds = TensorDataset(x_val_t, y_val_t)
+    tr_dl = DataLoader(tr_ds, batch_size=batch, shuffle=True)
+    val_dl = DataLoader(val_ds, batch_size=batch, shuffle=False)
+    return tr_dl, val_dl, x_tr.shape[1]
+
+
+def nested_cv(cfg):
+    import pandas as pd
+    import wandb
+    fold = 2
+    arch = str(cfg.get('arch', 'std'))
+    batch = int(cfg.get('batch', 100))
+    lr = float(cfg.get('lr', 1e-4))
+    epochs = int(cfg.get('epochs', 200))
+    drop = float(cfg.get('drop', 0.3))
+    log_every = int(cfg.get('log_every', 10))
+    use_wb = bool(cfg.get('use_wb', False))
+    wb_proj = str(cfg.get('wb_proj', 'synergy'))
+    data_dir = str(cfg.get('data_dir', 'data'))
+    cv_strategy = str(cfg.get('cv_strategy', 'random'))
+    cell_line_col = cfg.get('cell_line_col', None)
+    drug_col = cfg.get('drug_col', None)
+    feature_cols = cfg.get('feature_columns', '0:33')
+    target_col = cfg.get('target_column', 'ZIP')
+    spearman_scores = []
+    for split in [1, 2, 3]:
+        tr_dl, val_dl, in_dim = load_cv_split(split, data_dir, feature_cols, target_col, batch, cv_strategy, cell_line_col, drug_col)
+        model = SynergyModel(in_dim=in_dim, arch=arch, drop=drop)
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        x_train_t = torch.FloatTensor(x_train).to(device)
-        y_train_t = torch.FloatTensor(y_train).to(device)
-        x_test_t = torch.FloatTensor(x_test).to(device)
-        y_test_t = torch.FloatTensor(y_test).to(device)
-        
-        train_dataset = TensorDataset(x_train_t, y_train_t)
-        test_dataset = TensorDataset(x_test_t, y_test_t)
-        train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-        test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
-        
-        print(f"Fold {fold} ({self.cv_strategy} CV):")
-        print(f"  Train: {len(train_df)} samples")
-        print(f"  Test: {len(test_df)} samples")
-        
-        if self.cv_strategy != 'random':
-            train_groups = len(np.unique(groups[train_mask]))
-            test_groups = len(np.unique(groups[test_mask]))
-            group_name = "cell lines" if self.cv_strategy == 'cell_line' else "drugs"
-            print(f"  Train {group_name}: {train_groups}")
-            print(f"  Test {group_name}: {test_groups}")
-        
-        return x_train, y_train, x_test, y_test, scaler, train_loader, test_loader
-    
-    def get_validation_data(self, fold: int, split: int, feature_cols: str = '0:33',
-                           target_col: str = 'ZIP', batch_size: int = 100) -> Tuple:
+        model = model.to(device)
+        crit = nn.MSELoss()
+        opt = optim.Adam(model.parameters(), lr=lr)
+        best_val_spearman = -1.0
+        best_epoch = 0
+        if use_wb:
+            run_name = f"fold2_split{split}_{arch}_{cv_strategy}"
+            wandb.init(project=wb_proj, name=run_name, config={
+                'lr': lr,
+                'epochs': epochs,
+                'batch': batch,
+                'arch': arch,
+                'fold': fold,
+                'split': split,
+                'drop': drop,
+                'cv_strategy': cv_strategy
+            })
+        for epoch in tqdm(range(1, epochs + 1), desc=f"Split {split}"):
 
-        df = self._load_all_data()
-        
-        self._auto_detect_columns(df)
-        
-        if ':' in feature_cols:
-            start, end = map(int, feature_cols.split(':'))
-            feature_columns = list(range(start, end))
-        else:
-            feature_columns = feature_cols.split(',')
-        
-        if self.cv_strategy == 'random':
-            training_df = df[df['original_fold'] != fold]
-        else:
-            groups = self._create_groups(df)
-            unique_groups = np.unique(groups)
-            n_splits = min(3, len(unique_groups))
-            
-            if n_splits < 3:
-                training_df = df[df['original_fold'] != fold]
-            else:
-                gkf = GroupKFold(n_splits=n_splits)
-                splits = list(gkf.split(df, groups=groups))
-                train_idx, _ = splits[fold - 1]
-                training_df = df.iloc[train_idx]
-        
-        training_groups = self._create_groups(training_df)
-        unique_training_groups = np.unique(training_groups)
-        n_inner_splits = min(3, len(unique_training_groups))
-        
-        if n_inner_splits < 3:
-
-            indices = np.arange(len(training_df))
-            np.random.shuffle(indices)
-            split_size = len(indices) // 3
-            if split == 1:
-                val_idx = indices[:split_size]
-                train_idx = indices[split_size:]
-            elif split == 2:
-                val_idx = indices[split_size:2*split_size]
-                train_idx = np.concatenate([indices[:split_size], indices[2*split_size:]])
-            else:
-                val_idx = indices[2*split_size:]
-                train_idx = indices[:2*split_size]
-        else:
-            inner_gkf = GroupKFold(n_splits=n_inner_splits)
-            inner_splits = list(inner_gkf.split(training_df, groups=training_groups))
-            train_idx, val_idx = inner_splits[split - 1]
-        
-        inner_train_df = training_df.iloc[train_idx]
-        inner_val_df = training_df.iloc[val_idx]
-        
-        if isinstance(feature_columns[0], int):
-            x_train = inner_train_df.iloc[:, feature_columns].values
-            x_val = inner_val_df.iloc[:, feature_columns].values
-        else:
-            x_train = inner_train_df[feature_columns].values
-            x_val = inner_val_df[feature_columns].values
-        
-        y_train = inner_train_df[target_col].values.reshape(-1, 1)
-        y_val = inner_val_df[target_col].values.reshape(-1, 1)
-        
-        scaler = StandardScaler()
-        y_train = scaler.fit_transform(y_train)
-        y_val = scaler.transform(y_val)
-        
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        x_train_t = torch.FloatTensor(x_train).to(device)
-        y_train_t = torch.FloatTensor(y_train).to(device)
-        x_val_t = torch.FloatTensor(x_val).to(device)
-        y_val_t = torch.FloatTensor(y_val).to(device)
-        
-        train_dataset = TensorDataset(x_train_t, y_train_t)
-        val_dataset = TensorDataset(x_val_t, y_val_t)
-        train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-        val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
-        
-        return x_train, y_train, x_val, y_val, scaler, train_loader, val_loader
-
-
-def load_data_unified(data_dir: str, fold: int, cv_strategy: str = 'random',
-                     cell_line_col: str = None, drug_col: str = None,
-                     feature_cols: str = '0:33', target: str = 'ZIP', batch: int = 100):
-
-    cv = UnifiedCrossValidator(data_dir, cv_strategy, cell_line_col, drug_col)
-    return cv.get_fold_data(fold, feature_cols, target, batch)
-
-
-def load_valid_data_unified(data_dir: str, fold: int, split: int, cv_strategy: str = 'random',
-                           cell_line_col: str = None, drug_col: str = None,
-                           feature_cols: str = '0:33', target: str = 'ZIP', batch: int = 100):
-
-    cv = UnifiedCrossValidator(data_dir, cv_strategy, cell_line_col, drug_col)
-    return cv.get_validation_data(fold, split, feature_cols, target, batch)
+            model.train()
+            train_loss, train_pear, train_pred, train_true = 0.0, 0.0, [], []
+            for x, y in tr_dl:
+                x, y = x.to(device), y.to(device)
+                opt.zero_grad()
+                out = model(x)
+                loss = crit(out, y)
+                loss.backward()
+                opt.step()
+                train_loss += loss.item() * x.size(0)
+                train_pear += calc_pearson(out, y).item() * x.size(0)
+                train_pred.append(out.detach())
+                train_true.append(y.detach())
+            train_loss /= len(tr_dl.dataset)
+            train_pear /= len(tr_dl.dataset)
+            train_pred = torch.cat(train_pred, dim=0)
+            train_true = torch.cat(train_true, dim=0)
+            train_spear = calc_spearman(train_pred, train_true).item()
+            # Validate
+            model.eval()
+            val_loss, val_pear, val_pred, val_true = 0.0, 0.0, [], []
+            with torch.no_grad():
+                for x, y in val_dl:
+                    x, y = x.to(device), y.to(device)
+                    out = model(x)
+                    loss = crit(out, y)
+                    val_loss += loss.item() * x.size(0)
+                    val_pear += calc_pearson(out, y).item() * x.size(0)
+                    val_pred.append(out)
+                    val_true.append(y)
+            val_loss /= len(val_dl.dataset)
+            val_pear /= len(val_dl.dataset)
+            val_pred = torch.cat(val_pred, dim=0)
+            val_true = torch.cat(val_true, dim=0)
+            val_spearman = calc_spearman(val_pred, val_true).item()
+            if val_spearman > best_val_spearman:
+                best_val_spearman = val_spearman
+                best_epoch = epoch
+            if use_wb:
+                wandb.log({
+                    'epoch': epoch,
+                    'train_loss': train_loss,
+                    'train_pearson': train_pear,
+                    'train_spearman': train_spear,
+                    'val_loss': val_loss,
+                    'val_pearson': val_pear,
+                    'val_spearman': val_spearman
+                })
+            if epoch % log_every == 0 or epoch == 1 or epoch == epochs:
+                print(f"Split {split} | Epoch {epoch}/{epochs} | "
+                      f"Train Loss: {train_loss:.4f} | Train Pearson: {train_pear:.4f} | Train Spearman: {train_spear:.4f} | "
+                      f"Val Loss: {val_loss:.4f} | Val Pearson: {val_pear:.4f} | Val Spearman: {val_spearman:.4f}")
+        spearman_scores.append(best_val_spearman)
+        print(f"Best Spearman for split {split}: {best_val_spearman:.4f} (epoch {best_epoch})")
+        if use_wb:
+            wandb.log({'best_val_spearman': best_val_spearman, 'best_epoch': best_epoch})
+            wandb.finish()
+    mean_spearman = float(np.mean(spearman_scores))
+    print(f"Mean Spearman across splits: {mean_spearman:.4f}")
+    if use_wb:
+        wandb.init(project=wb_proj, name=f"fold2_summary_{arch}_{cv_strategy}")
+        wandb.log({'mean_spearman': mean_spearman})
+        wandb.finish()
+    return mean_spearman

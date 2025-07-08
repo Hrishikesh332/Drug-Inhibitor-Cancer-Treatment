@@ -98,18 +98,49 @@ cv_strategy: random
 cv_strategy: cell_line
 cell_line_col: CELL_LINE
 
-# Leave-drug-out CV
+# Leave-drug-out CV (True Drug Out: holds out any row where the drug appears in DRUG1 or DRUG2)
 cv_strategy: drug
-drug_col: DRUG_ID
+# drug_col is ignored for true drug out; both DRUG1 and DRUG2 are used automatically
 
+## Cross-Validation
+
+This project supports three types of cross-validation for model evaluation:
+
+- **Random CV** - Randomly splits the data into train/validation splits.
+- **Cell line out CV** - Holds out all samples from specific cell lines in each split, testing generalization to unseen cell lines.
+- **Drug out CV** - Holds out all samples containing a specific drug in either the DRUG1 or DRUG2 column in each split, testing generalization to unseen drugs in any position of the combination.
+
+### Running Cross-Validation
+
+To run cross-validation (for fold 2, with 3 splits):
+
+```bash
+python scripts/run_cv.py --config configs/cv.yaml
+```
+
+- Edit `cv.yaml` to set the desired strategy and columns:
+
+```yaml
+# Random CV (default)
+cv_strategy: random
+
+# Leave-cell-line-out CV  
+cv_strategy: cell_line
+cell_line_col: CELL_LINE
+
+# Leave-drug-out CV (True Drug Out: holds out any row where the drug appears in DRUG1 or DRUG2)
+cv_strategy: drug
+# drug_col is ignored for true drug out; both DRUG1 and DRUG2 are used automatically
+```
+
+- The code will print validation metrics for each split and the mean across splits.
+- For full experiment tracking, set `use_wb: true` in your config to enable Weights & Biases logging.
+
+### Notes
+- The cross-validation code is implemented in `src/training/cross_valid.py`.
+- Only fold 2 is currently supported for cross-validation.
+- For true drug out, the grouping is done on the set of all drugs in each row (both DRUG1 and DRUG2).
 
 ## Configuration Files
 
 * `configs/base.yaml`
- This file contains the configuration for the model training, including the model architecture, batch size, learning rate, etc
-
-* `configs/grid.yaml`
-
-This file contains the configuration for hyperparameter tuning, including the parameters to search over during grid search.
-
-
