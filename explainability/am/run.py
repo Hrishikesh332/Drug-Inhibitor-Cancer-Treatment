@@ -4,12 +4,16 @@ from typing import Literal
 from logging import Logger
 
 import torch
+import numpy as np
 import wandb
 from tqdm import trange
 
 from trans_synergy.utils import set_seed
 from explainability.utils import save_with_wandb
 from explainability.am.config import ActivationMaximizationConfig
+
+
+epsilon = 1e-6
 
 def run_activation_maximization(
     model: torch.nn.Module,
@@ -24,6 +28,12 @@ def run_activation_maximization(
     
     input_shape = X[0].shape
     
+    if isinstance(X, np.ndarray):
+        X = torch.tensor(X)
+    # Regularize to the input space 
+    real_mean = X.mean(0, keepdim=True)
+    real_std = X.std(0, keepdim=True)
+    
     config = ActivationMaximizationConfig(paper=paper, input_bounds=input_bounds, **kwargs)
     minimax = "max" if config.maximize else "min"
     
@@ -37,12 +47,16 @@ def run_activation_maximization(
         seed = trial
         set_seed(trial)
 
-        input_tensor = torch.randn(input_shape, requires_grad=True, device=device)
+        input_tensor = torch.randn(input_shape, requires_grad=True, device=device) * 0.00001
         
         if config.paper == "transynergy":
             input_tensor = input_tensor.view(1, 3, config.feature_length).clone().detach().requires_grad_(True)
+            real_mean = real_mean.view(1, 3, config.feature_length)
+            real_std = real_std.view(1, 3, config.feature_length) + epsilon
         elif config.paper == "biomining":
             input_tensor = input_tensor.view(1, config.feature_length).clone().detach().requires_grad_(True)
+            real_mean = real_mean.view(1, config.feature_length)
+            real_std = real_std.view(1, config.feature_length) + epsilon 
 
         optimizer = torch.optim.Adam([input_tensor], lr=config.lr)
 
@@ -62,6 +76,8 @@ def run_activation_maximization(
                 loss += config.l1_lambda * input_tensor.abs().sum()
             elif config.regularization == "l2":
                 loss += config.l2_lambda * input_tensor.norm(p=2)
+            elif config.regularization == "l2_input":
+                loss += config.l2_lambda *  ((input_tensor - real_mean) / real_std).pow(2).mean()
 
             loss.backward()
             optimizer.step()
@@ -70,7 +86,7 @@ def run_activation_maximization(
                        f"trial_{trial}/output": out_val,
                        "step": step})
 
-            with torch.no_grad():
+            with torch.no_grad(): 
                 input_tensor.clamp_(*config.input_bounds)
 
                 current_val = out_val.item()

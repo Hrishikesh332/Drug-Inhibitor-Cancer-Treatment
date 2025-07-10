@@ -300,6 +300,7 @@ class SynergyDataReader(CustomDataReader):
     @classmethod
     def get_synergy_data_cell_lines_by_indices(cls, indices):
         synergy_data = cls.get_synergy_score()
+        synergy_data =  pd.concat([synergy_data, synergy_data]).reset_index(drop=True)
         filtered_cell_lines = synergy_data.loc[synergy_data.index.isin(indices), 'cell_line']  
         return filtered_cell_lines
 
