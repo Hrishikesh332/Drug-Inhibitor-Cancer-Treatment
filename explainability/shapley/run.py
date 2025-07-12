@@ -40,26 +40,26 @@ def run_shap_explanation(
     X_train = X_train.to(device)
     X_test = X_test.to(device)
 
-    # sample size is equal to percentage but at least the minimum and no more than the maximum configured limits
-    background_size = min(max(config.min_background, int(X_train.shape[0] * config.samples_percentage)), config.max_background) 
-    test_size = min(max(config.min_test, int(X_test.shape[0] * config.samples_percentage)), config.max_test)
+    if paper == "transynergy":
+        # Sample 50%
+        background_size = int(0.5 * X_train.shape[0])
+        test_size = int(0.5 * X_test.shape[0])
 
-    if config.paper == "transynergy":
         X_train_sample = X_train.view(X_train.shape[0], -1) 
-        X_test_sample = X_test.view(X_test.shape[0], -1)    
-    else:
-        X_train_sample = X_train
-        X_test_sample = X_test
-        
-    background, background_indices = select_representative_samples(X_train_sample, background_size)
-    test_inputs, test_indices = select_representative_samples(X_test_sample, test_size)
+        X_test_sample = X_test.view(X_test.shape[0], -1) 
 
-    if config.paper == "transynergy":
+        background, background_indices = select_representative_samples(X_train_sample, background_size)
+        test_inputs, test_indices = select_representative_samples(X_test_sample, test_size)
+
         X_train = reshape_transynergy_input(X_train, logger, "X_train")
         X_test = reshape_transynergy_input(X_test, logger, "X_test")
         background = background.view(background.shape[0], 3, -1)
         test_inputs = test_inputs.view(test_inputs.shape[0], 3, -1)
-
+    
+    else:
+        background = X_train
+        test_inputs = X_test
+        test_indices = np.arange(X_test.shape[0])
     
     explainer = shap.GradientExplainer(model, background)
 
