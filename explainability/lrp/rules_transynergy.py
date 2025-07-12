@@ -10,11 +10,6 @@ from explainability.lrp.lxt.transynergy import TransposeMultiTransformersPlusLin
 import trans_synergy
 from trans_synergy.models.trans_synergy import attention_model
 
-setting = trans_synergy.settings.get()
-
-monkey_patch(attention_model, patch_map=attnLRP, verbose=True)
-monkey_patch_zennit(verbose=True)
-
 
 def explain_transynergy(
     model: torch.nn.Module,
@@ -30,6 +25,11 @@ def explain_transynergy(
     Returns:
         Tuple of relevance scores
     """
+    
+    setting = trans_synergy.settings.get()
+    monkey_patch(attention_model, patch_map=attnLRP, verbose=True)
+    monkey_patch_zennit(verbose=True)
+
 
     lxt_model = TransposeMultiTransformersPlusLinearLxt(
         d_input_list=[2402],

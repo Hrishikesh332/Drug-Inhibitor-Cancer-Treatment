@@ -1,1 +1,2 @@
 from explainability.am.run import run_activation_maximization
+from explainability.am.run_by_cell_line import run_activation_maximization_by_cell_line

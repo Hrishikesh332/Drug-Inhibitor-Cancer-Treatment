@@ -107,11 +107,14 @@ ForBiomining data can be found at this location `external/predicting_synergy_nn/
 ### Training
 **TranSynergy**:
 
-Run training with different feature types:
+Run training with different feature types: 
+*Note: You need to run this from the root directory*
 ```bash
-python main.py --settings_choice='gene_dependency'  # Uses gene dependency features
-python main.py --settings_choice='gene_expression'  # Uses gene expression profiles
-python main.py --settings_choice='netexpress'       # Uses network-based expression
+python external/drug_combination/main.py --settings_choice='gene_dependency'  # Uses gene dependency features
+python external/drug_combination/main.py --settings_choice='gene_expression'  # Uses gene expression profiles
+python external/drug_combination/main.py --settings_choice='netexpress'       # Uses network-based expression
+```
+
 ```
 
 Here is how you can check your result: [Transynergy Result](./external/drug_combination/README.md)
@@ -203,7 +206,7 @@ This section describes how to generate explanations for the drug synergy models 
 - **Integrated Gradients**:  
   A **model-specific** technique designed for differentiable models like neural networks. It computes the gradient of the model’s output with respect to the input features, integrated over a straight-line path from a baseline (e.g., all zeros) to the actual input. Integrated Gradients provide **attribution scores** that highlight the relative importance of each feature in driving the prediction. Applicable to both TranSynergy and Biomining models.
 
-Here is the location to check result of these meathods : `explainability\notebooks`.
+To download the pretrained model checkpoints required for running Integrated Gradients [file](https://drive.google.com/drive/folders/1Xk0onniJZI51SM-d1crSXWr7O0wwAJ5w?usp=sharing) and use this path to check the results of all meathods : `explainability\notebooks`.
 
 
 **Running Explanations (Example)**:

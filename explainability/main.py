@@ -1,3 +1,18 @@
+"""
+Main file for running explainability methods on model outputs.
+
+This script provides functionality to run various explainability techniques, including:
+- Activation Maximization
+- SHAP
+- Anchors (works only on Biomining model)
+- Integrated Gradients
+- Layer-wise Relevance Propagation (LRP)
+
+Usage Example:
+---
+To run activation maximization on the 'transynergy' model:
+(trans_synergy) [root_of_project] python -m explainability.main --model transynergy --method activation_max
+"""
 import argparse
 import logging
 from typing import Callable
@@ -11,7 +26,7 @@ from explainability.data_utils import (
     load_transynergy_data,
     load_biomining_data
 )
-from explainability.am import run_activation_maximization
+from explainability.am import run_activation_maximization, run_activation_maximization_by_cell_line
 from explainability.shapley import run_shap_explanation
 from explainability.anchors import run_anchors
 from explainability.lrp import run_lrp_explanation
@@ -29,7 +44,7 @@ MODEL_DATA_REGISTRY = {
     "biomining": ModelAndDataConfig(
         name="biomining",
         model_loader=load_biomining_model,
-        model_path="external/predicting_synergy_nn/outputs/models/best_f1.pt",
+        model_path="external/predicting_synergy_nn/outputs/models/final_f1.pt",
         data_loader=load_biomining_data
     ),
     "transynergy": ModelAndDataConfig(
@@ -80,7 +95,7 @@ def run_explanation(model, model_name, method, X_train, Y_train, X_test, Y_test,
                             num_explanations=1000,
                         )
     elif method == 'activation_max':
-        for regularization in [None, "l2", "l1"]:
+        for regularization in ["l2_input", "l2", "l1", None]: # TODO: nina fix
             for maximize in [True, False]:
                 logger.info(f"Running activation maximization with regularization={regularization}, maximize={maximize}")
                 run_activation_maximization(
@@ -90,6 +105,18 @@ def run_explanation(model, model_name, method, X_train, Y_train, X_test, Y_test,
                     logger = logger,
                     regularization = regularization,
                     maximize = maximize,
+                )
+        # Run activation maximization for each cell line
+        for regularization in ["l2_input"]:
+                logger.info(f"Running activation maximization by cell_line with regularization={regularization}")
+                run_activation_maximization_by_cell_line(
+                    model = model, 
+                    paper = model_name, 
+                    X = X_train,
+                    logger = logger,
+                    regularization = regularization,
+                    maximize = True, # only interested in maximally activating the model per cell_line
+                    split='train'
                 )
     elif method == 'lrp':
         logger.info(f"Running LRP")
@@ -113,12 +140,12 @@ def main():
     
     parser.add_argument('--model', 
                         type=str, 
-                        default='biomining',
+                        default='transynergy',
                         choices=MODEL_DATA_REGISTRY.keys(),
                         help='Which model to explain')
     parser.add_argument('--method', 
                         type=str, 
-                        default='lrp',
+                        default='activation_max',
                         choices=['shap', 'anchors', 'activation_max', 'integrated_gradients', 'lrp'],
                         help='Which explainability method to use')
 
