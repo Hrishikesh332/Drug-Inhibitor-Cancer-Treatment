@@ -89,8 +89,8 @@ def load_transynergy_drug_names(split: Literal['train', 'test'] = 'train'):
         split_indices = partition_indices[split]
     
     handler = trans_synergy.data.trans_synergy_data.SynergyDataReader
-    cell_lines = handler.get_synergy_data_drug_names_by_indices(split_indices) 
-    return  cell_lines
+    drug_a, drug_b = handler.get_synergy_data_drug_names_by_indices(split_indices) 
+    return drug_a, drug_b
 
 
 def load_biomining_data(split: Literal['train', 'test'] = 'train'):
