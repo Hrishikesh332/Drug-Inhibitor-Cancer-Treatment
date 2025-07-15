@@ -310,6 +310,14 @@ class SynergyDataReader(CustomDataReader):
         if not filtered:
             cls.__filter_drugs()
         return set(cls.synergy_score['drug_a_name']).union(set(cls.synergy_score['drug_b_name']))
+    
+    @classmethod
+    def get_synergy_data_drug_names_by_indices(cls, indices):
+        synergy_data = cls.get_synergy_score()
+        synergy_data =  pd.concat([synergy_data]).reset_index(drop=True)
+        filtered_drugs_a = synergy_data.loc[synergy_data.index.isin(indices), 'drug_a_name']  
+        filtered_drugs_b = synergy_data.loc[synergy_data.index.isin(indices), 'drug_b_name']
+        return filtered_drugs_a, filtered_drugs_b
 
     @classmethod
     def get_final_index(cls, pro_filter = False):
