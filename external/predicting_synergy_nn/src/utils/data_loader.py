@@ -34,7 +34,7 @@ def load_data(datapath: str, fold: Literal[1, 2, 3], cell_line_encoding: Literal
     train_df = train_df.sample(frac=1)
     test_df = test_df.sample(frac=1)
 
-    # Cell line encoding
+    # Cell line encoding - Fixed in this project: previously 0: no effect 1: negative effect 2:positive effect - which is an incoreect method of encoding.
     if cell_line_encoding == 'ordinal':
         remap = {0: 0, 1: -1, 2: 1}
         train_df[CELL_LINE_COLS] = train_df[CELL_LINE_COLS].replace(remap)
