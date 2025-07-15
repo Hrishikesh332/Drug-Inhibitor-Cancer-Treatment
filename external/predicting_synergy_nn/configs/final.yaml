@@ -1,10 +1,11 @@
-fold: 1
-arch: std
+arch: fold2
 batch: 100
-lr: 0.0001  # This is 1e-4 in decimal format
-epochs: 2000
-patience: 200
+lr: 0.00005
+epochs: 4000
+patience: 500
 drop: 0.3
+cell_line_encoding: ordinal
+
 log_every: 10
 use_wb: true
 wb_proj: synergy
