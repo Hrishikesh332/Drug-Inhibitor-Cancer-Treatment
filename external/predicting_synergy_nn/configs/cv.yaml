@@ -2,21 +2,19 @@
 arch: std
 batch: 100
 lr: 0.0001
-epochs: 2000
+epochs: 8000
 drop: 0.3
 log_every: 10
 use_wb: true
 wb_proj: synergy
-data_dir: data
+data_dir: external/predicting_synergy_nn/data
 
-# Options - 'random', 'cell_line', 'drug'
-cv_strategy: random
-
-cell_line_col: null  #  'CELL_LINE', 'cell_line_id', 'cellline'
+# Cell line out CV
+# cv_strategy: cell_line
+# cell_line_col: CELL_LINE
 
 feature_columns: '0:33' 
 target_column: 'ZIP'
-
 
 
 # Random CV 
@@ -28,5 +26,5 @@ target_column: 'ZIP'
 # cell_line_col: CELL_LINE
 #
 # Drug out CV 
-# cv_strategy: drug
-# cell_line_col: null
+cv_strategy: drug
+cell_line_col: null
