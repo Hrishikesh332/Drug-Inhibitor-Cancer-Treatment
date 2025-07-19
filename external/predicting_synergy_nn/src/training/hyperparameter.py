@@ -1,19 +1,17 @@
 import os
 import yaml
 import itertools
-import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from tqdm import tqdm
 import wandb
 import numpy as np
 
-from src.models.architectures import SynergyModel
-from src.models.metrics import calc_pearson, calc_spearman
-from src.utils.data_loader import load_valid_data
-from src.utils.visualization import plot_grid_results
+from models.architectures import SynergyModel
+from models.metrics import calc_pearson, calc_spearman
+from utils.data_loader import load_valid_data
+from utils.visualization import plot_grid_results
 
 def train_eval(model, training_dataloader, validation_dataloader, learning_rate: float, max_epochs: int, device: str, early_stop: int = 50, log_wandb: bool = False):
     crit = nn.MSELoss()
@@ -287,28 +285,3 @@ def run_grid_search(cfg):
         print(f"Warning: Could not create visualization: {e}")
     
     return best
-
-if __name__ == "__main__":
-    import argparse
-    
-    parser = argparse.ArgumentParser(description='Run hyperparameter search')
-    parser.add_argument('--config', type=str, required=True, help='Config YAML path')
-    parser.add_argument('--folds', type=str, default=None, help='Comma-separated folds (e.g., 1,2,3)')
-    parser.add_argument('--splits', type=str, default=None, help='Comma-separated splits (e.g., 1,2,3)')
-    args = parser.parse_args()
-    
-    with open(args.config, 'r') as f:
-        cfg = yaml.safe_load(f)
-    
-    if args.folds:
-        cfg['folds'] = [int(f.strip()) for f in args.folds.split(',')]
-    if args.splits:
-        cfg['splits'] = [int(s.strip()) for s in args.splits.split(',')]
-    
-    if 'folds' in cfg or 'splits' in cfg or args.folds or args.splits:
-        run_hyperparameter_search_all_folds(args.config)
-    else:
-        result = run_grid_search(cfg)
-        if result is None:
-            print("Hyperparameter search failed")
-            exit(1)

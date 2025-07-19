@@ -32,13 +32,14 @@ def load_transynergy_data(split: Literal['train', 'test'] = 'train'):
         'eval1': partition[3],
         'eval2': partition[4]
     }
-
+    
     X = X_df.to_numpy()
     std_scaler.fit(Y[partition_indices['train']])
     Y = std_scaler.transform(Y)
+    
     X_res = X[partition_indices[split]]
     Y_res = Y[partition_indices[split]]
-    
+
     return X_res, Y_res
 
 def load_transynergy_cell_line_data(split: Literal['train', 'test'] = 'train'):
@@ -65,6 +66,31 @@ def load_transynergy_cell_line_data(split: Literal['train', 'test'] = 'train'):
     handler = trans_synergy.data.trans_synergy_data.SynergyDataReader
     cell_lines = handler.get_synergy_data_cell_lines_by_indices(split_indices) 
     return  cell_lines
+
+
+def load_transynergy_drug_names(split: Literal['train', 'test'] = 'train'):
+    """
+    Load the Transynergy drug names from the specified path.
+    """
+    split_func = trans_synergy.data.trans_synergy_data.DataPreprocessor.regular_train_eval_test_split
+    partition = split_func(fold_col_name="fold", test_fold=4, evaluation_fold=0)
+    partition_indices = {
+        'train': partition[0],
+        'test1': partition[1],
+        'test2': partition[2],
+        'eval1': partition[3],
+        'eval2': partition[4]
+    }
+    
+    if split == 'test':
+        # returns test1 just like load data for explainability
+        split_indices = partition_indices['test1']
+    else:
+        split_indices = partition_indices[split]
+    
+    handler = trans_synergy.data.trans_synergy_data.SynergyDataReader
+    drug_a, drug_b = handler.get_synergy_data_drug_names_by_indices(split_indices) 
+    return drug_a, drug_b
 
 
 def load_biomining_data(split: Literal['train', 'test'] = 'train'):

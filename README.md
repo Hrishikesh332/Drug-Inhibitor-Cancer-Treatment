@@ -22,7 +22,7 @@ This project leverages deep learning to explore drug combination therapies for c
 ---
 
 ## Motivation
-Tumors often develop resistance to single-drug therapies, limiting treatment efficiency. This project aims to identify effective drug combinations using machine learning and deep learning models.
+Tumors often develop resistance to single-drug therapies, limiting treatment efficiency. This project aims to identify effective drug combinations using machine learning models and XAI methods.
 ## Submodules
 
 ### TranSynergy
@@ -33,7 +33,7 @@ A Transformer-based model ([Liu & Xie, 2021]) for predicting drug synergy in can
 - **Netexpress**: Network-based expression integrating interaction data.
 
 ### Biomining Neural Network
-**Location**: `external/biomining_synergy`  
+**Location**: `external/predicting_synergy_nn`  
 A deep learning model for predicting drug synergy in breast cancer based on target-protein inhibition profiles, using nested cross-validation for robust evaluation.
 
 ---
@@ -47,6 +47,7 @@ A deep learning model for predicting drug synergy in breast cancer based on targ
 
 ## Setup
 For TranSynergy:
+0. **Navigate to `external/drug_combination`**
 1. **Create and activate a conda environment**:
    ```bash
    conda create -n trans_synergy python=3.11
@@ -69,8 +70,15 @@ For TranSynergy:
    ```
 
 For Biomining Neural Network:
+0. **Navigate to `external/predicting_synergy_nn`**
+1. **Create and activate a conda environment (if not yet existing)**:
    ```bash
-   python setup_venv.py  # Sets up the virtual environment and dependencies
+   conda create -n biomining python=3.11
+   conda activate biomining
+   ```
+2. **Install project dependencies**:
+   ```bash
+   pip install -r requirements.txt
    ```
 
 ---
@@ -107,24 +115,37 @@ ForBiomining data can be found at this location `external/predicting_synergy_nn/
 ### Training
 **TranSynergy**:
 
-Run training with different feature types:
+Run training with different feature types: 
+*Note: You need to run this from the root directory*
 ```bash
-python main.py --settings_choice='gene_dependency'  # Uses gene dependency features
-python main.py --settings_choice='gene_expression'  # Uses gene expression profiles
-python main.py --settings_choice='netexpress'       # Uses network-based expression
+python external/drug_combination/main.py --settings_choice='gene_dependency'  # Uses gene dependency features
+python external/drug_combination/main.py --settings_choice='gene_expression'  # Uses gene expression profiles
+python external/drug_combination/main.py --settings_choice='netexpress'       # Uses network-based expression
+```
+
 ```
 
 Here is how you can check your result: [Transynergy Result](./external/drug_combination/README.md)
 
 **Biomining Neural Network**:
-- Single fold:
-  ```bash
-  python -m src.training.trainer --config configs/base.yaml
-  ```
-- Multiple folds:
-  ```bash
-  python scripts/run_training.py --folds 1,2,3 --config configs/base.yaml
-  ```
+- K-fold Cross Validation
+The data is split up into 3 folds. You can choose which to run on using the `--folds` argument, and the script will 
+report the final CV scores.
+
+```bash
+python cli/run_k_fold_cross_validation.py --folds 1,2,3 --config configs/base.yaml
+```
+
+- Hyperparameter Search
+
+```bash
+python cli/run_grid_search.py --folds 1,2,3 --splits 1,2,3 --config configs/grid.yaml
+```
+
+- Final model training
+```bash
+python cli/train_model.py --config configs/base.yaml
+```
 
 ---
 
@@ -138,7 +159,7 @@ python -m src.training.hyperparameter --config configs/grid.yaml
 ```
 For multiple folds and splits:
 ```bash
-python scripts/run_grid_search.py --folds 1,2,3 --splits 1,2,3 --config configs/grid.yaml
+python cli/run_grid_search.py --folds 1,2,3 --splits 1,2,3 --config configs/grid.yaml
 ```
 
 ---
@@ -203,7 +224,7 @@ This section describes how to generate explanations for the drug synergy models 
 - **Integrated Gradients**:  
   A **model-specific** technique designed for differentiable models like neural networks. It computes the gradient of the model’s output with respect to the input features, integrated over a straight-line path from a baseline (e.g., all zeros) to the actual input. Integrated Gradients provide **attribution scores** that highlight the relative importance of each feature in driving the prediction. Applicable to both TranSynergy and Biomining models.
 
-Here is the location to check result of these meathods : `explainability\notebooks`.
+To download the pretrained model checkpoints required for running Integrated Gradients [file](https://drive.google.com/drive/folders/1Xk0onniJZI51SM-d1crSXWr7O0wwAJ5w?usp=sharing) and use this path to check the results of all meathods : `explainability\notebooks`.
 
 
 **Running Explanations (Example)**:
@@ -216,6 +237,16 @@ python -m explainability.main --model transynergy --method integrated_gradients
 ```bash
 python -m explainability.shapley.gsea --paper biomining
 ```
+
+### ⚠️ **Caution: Large File Notice** ⚠️  
+Some result files are too large to upload via Git. For those, please use the provided Google Drive links instead.
+
+**TransSynergy LRP Relevances**  
+Paste the downloaded file under:  
+`explainability/lrp/results/transynergy_subsample_False`
+
+🔗 [Download from Google Drive](https://drive.google.com/file/d/15CLzOmeJk0-FpqtSNumrjJMNG1JBFKDq/view?usp=sharing)
+
 
 ---
 

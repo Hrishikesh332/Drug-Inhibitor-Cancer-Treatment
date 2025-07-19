@@ -1,6 +1,6 @@
 import torch
 import numpy as np
-from scipy.stats import spearmanr, pearsonr
+from scipy.stats import spearmanr
 
 def calc_pearson(pred, true):
     x = pred.flatten()
@@ -13,7 +13,8 @@ def calc_pearson(pred, true):
     
     num = torch.mean(xd * yd)
     den = torch.std(xd) * torch.std(yd)
-    
+    if den == 0:
+        return torch.tensor(0.0).to(pred.device)
     return num / den
 
 def calc_spearman(pred, true):

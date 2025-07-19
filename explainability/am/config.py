@@ -12,6 +12,6 @@ class ActivationMaximizationConfig(ExplainationConfig):
     lr: float = 0.01
     early_stopping: bool = True
     patience: int = 500
-    regularization: Optional[Literal["l1", "l2"]] = None
+    regularization: Optional[Literal["l1", "l2", "l2_input"]] = None
     l1_lambda: float = 1e-3 # hyperparams for regularisation
     l2_lambda: float = 1e-3 # hyperparams for regularisation
