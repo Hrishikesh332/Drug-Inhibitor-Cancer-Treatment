@@ -172,10 +172,18 @@ At the start of the project, data leakage checks were conducted for both Biomini
   - Verifies **semantic integrity** to ensure data annotations (e.g., drug or protein profiles) are consistent and meaningful.  
   - Examines **overlapping** between train, validation, and test sets to prevent data leakage across folds in nested cross-validation.
 
-- **TranSynergy**:  
+  - **TranSynergy**:  
   - Performs **structural integrity checks** to ensure the data (e.g., gene dependency, gene expression, or netexpress features) is correctly formatted and free from errors that could introduce leakage.  
   - Conducts **correlation analysis** to detect and mitigate highly correlated features that might bias predictions.
 
+**Running Explanations (Example) from the root directory**:
+```bash
+cd data_leakage_analysis/transynergy && python check_for_overlap.py
+
+cd data_leakage_analysis/biomining/test && python check_correlation_data.py
+
+cd data_leakage_analysis/biomining/validation && python check_dataset_structure.py
+```
 ---
 
 ## Baseline:

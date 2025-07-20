@@ -4,7 +4,7 @@ import os
 
 for fold in range(1, 4):       
     for variant in range(1, 4):  
-        folder = f"../../../external/predicting_synergy_nn/identify_best_parameters/fold{fold}_{variant}"
+        folder = f"../../../external/predicting_synergy_nn/data/fold{fold}/validation"
         train_file = os.path.join(folder, f"fold{fold}_train{variant}.csv")
         valid_file = os.path.join(folder, f"fold{fold}_valid{variant}.csv")
 

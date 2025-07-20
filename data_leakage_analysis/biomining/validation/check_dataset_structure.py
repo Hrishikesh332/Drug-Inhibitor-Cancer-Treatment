@@ -57,34 +57,35 @@ def check_semantic_integrity(file_path):
     return issues
 
 for fold in range(1, 4):
-    folder = f"../../../external/predicting_synergy_nn/train_final_models/train_fold{fold}"
-    train_file = os.path.join(folder, f"fold{fold}_alltrain.csv")
-    valid_file = os.path.join(folder, f"fold{fold}_test.csv")
+    for variant in range(1, 4):
+        folder = f"../../../external/predicting_synergy_nn/data/fold{fold}/validation"
+        train_file = os.path.join(folder, f"fold{fold}_train{variant}.csv")
+        valid_file = os.path.join(folder, f"fold{fold}_valid{variant}.csv")
 
-    if not os.path.exists(train_file) or not os.path.exists(valid_file):
-        print(f"Skipping {folder}: Missing train or valid file.")
-        continue
+        if not os.path.exists(train_file) or not os.path.exists(valid_file):
+            print(f"Skipping {folder}: Missing train or valid file.")
+            continue
 
-    print(f"\n=== Checking files in {folder} ===")
+        print(f"\n=== Checking files in {folder} ===")
 
-    problems_train = check_semantic_integrity(train_file)
-    problems_test = check_semantic_integrity(valid_file)
+        problems_train = check_semantic_integrity(train_file)
+        problems_test = check_semantic_integrity(valid_file)
 
-    if problems_train:
-        print(f"Found {len(problems_train)} problematic row(s) in train set:\n")
-        for row_num, row_issues in problems_train:
-            print(f"Row {row_num}:")
-            for issue in row_issues:
-                print(f"  - {issue}")
+        if problems_train:
+            print(f"Found {len(problems_train)} problematic row(s) in train set:\n")
+            for row_num, row_issues in problems_train:
+                print(f"Row {row_num}:")
+                for issue in row_issues:
+                    print(f"  - {issue}")
 
-    else:
-        print("All rows in train set passed semantic integrity checks.")
+        else:
+            print("All rows in train set passed semantic integrity checks.")
 
-    if problems_test:
-        print(f"Found {len(problems_test)} problematic row(s) in test set:\n")
-        for row_num, row_issues in problems_test:
-            print(f"Row {row_num}:")
-            for issue in row_issues:
-                print(f"  - {issue}")
-    else:
-        print("All rows in test set passed semantic integrity checks.")
+        if problems_test:
+            print(f"Found {len(problems_test)} problematic row(s) in test set:\n")
+            for row_num, row_issues in problems_test:
+                print(f"Row {row_num}:")
+                for issue in row_issues:
+                    print(f"  - {issue}")
+        else:
+            print("All rows in test set passed semantic integrity checks.")
