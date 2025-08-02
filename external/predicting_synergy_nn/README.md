@@ -63,19 +63,19 @@ The data is split up into 3 folds. You can choose which to run on using the `--f
 report the final CV scores.
 
 ```bash
-python cli/run_k_fold_cross_validation.py --folds 1,2,3 --config configs/base.yaml
+PYTHONPATH=src python cli/run_k_fold_cross_validation.py --folds 1,2,3 --config configs/base.yaml
 ```
 
 ### 2 Hyperparameter Search
 
 ```bash
-python cli/run_grid_search.py --folds 1,2,3 --splits 1,2,3 --config configs/grid.yaml
+PYTHONPATH=src python cli/run_grid_search.py --folds 1,2,3 --splits 1,2,3 --config configs/grid.yaml
 ```
 
 ### 3 Training the Final Model
 Merges the folds and trains model on one fold.
 ```bash
-python cli/train_model.py --config configs/base.yaml --fold 1
+PYTHONPATH=src python cli/train_model.py --config configs/base.yaml --fold 1
 ```
 
 ## Configuration Files

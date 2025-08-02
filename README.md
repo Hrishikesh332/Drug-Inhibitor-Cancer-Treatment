@@ -39,56 +39,61 @@ A deep learning model for predicting drug synergy in breast cancer based on targ
 ---
 
 ## Prerequisites
-- **Tools**: `conda`, `git`, `git-lfs`, `wandb` (for baseline results)
+- **Tools**: `conda`, `git`, `git-lfs`, `wandb` 
 - **Hardware**: GPU with CUDA support (optional, for faster training)
 - **Python**: Version 3.11  
 
 ---
 
 ## Setup
-For TranSynergy:
-0. **Navigate to `external/drug_combination`**
-1. **Create and activate a conda environment**:
+0. **Create and activate a conda environment**:
    ```bash
-   conda create -n trans_synergy python=3.11
-   conda activate trans_synergy
+   conda create -n cancer_ml python=3.11
+   conda activate cancer_ml
    ```
-2. **Install PyTorch** (choose based on your system):
+1. **Install PyTorch**<br>
+Visit https://pytorch.org/get-started/locally/ and install based on your system. <br>
+Some example installations:
    ```bash
    # For GPU (CUDA 12.4)
    conda install pytorch==2.4.1 pytorch-cuda=12.4 -c pytorch -c nvidia
+   ```
+   ```bash
    # For CPU-only
    conda install pytorch==2.4.1 cpuonly -c pytorch
    ```
-3. **Install project dependencies**:
+
+2. **Install TransSynergy**:
    ```bash
-   pip install -e .  # Installs the project in editable mode
-   ```
-4. **For baseline results**:
-   ```bash
-   pip install -r baselines/requirements.txt  # Installs additional dependencies (e.g., scikit-learn, catboost)
+   pip install external/drug_combination 
    ```
 
-For Biomining Neural Network:
-0. **Navigate to `external/predicting_synergy_nn`**
-1. **Create and activate a conda environment (if not yet existing)**:
+3. **Install BioMining**:
    ```bash
-   conda create -n biomining python=3.11
-   conda activate biomining
+   pip install -r external/predicting_synergy_nn/requirements.txt
    ```
-2. **Install project dependencies**:
+   
+4. **Install 'Baselines' requirements**:
    ```bash
-   pip install -r requirements.txt
+   pip install -r baselines/requirements.txt  
    ```
-
+   
+5. **Install 'Explainability' requirements:
+   ```bash
+   pip install -r explainability/requirements.txt  
+   ```
 ---
 
 ## Data & Dataset
 This section provides instructions for downloading the synergy score dataset used for training and evaluation. 
 
-**Transynsergy**
+### Transynsergy
 Drug data is derived from DrugBank (drug-target interactions), ChEMBL (bioactivity data), and STRING (protein-protein interaction networks), encoding each drug as a binary vector representing interactions with 2401 selected genes. Cell line data is obtained from CCLE and GDSC (gene expression profiles) and Achilles and Sanger CRISPR (gene dependency scores), providing gene expression or dependency values for the same 2401 genes. Drug combination data, sourced from Merck drug synergy data, is structured as a matrix with three columns: two for drug profiles (binary vectors) and one for cell line features (gene expression or dependency, with a potential fourth column if both are included). The output is a continuous synergy score, indicating whether drug pairs are synergistic, additive, or antagonistic. This dataset enables the TranSynergy transformer-based model to predict synergy and deconvolve pathways via attention mechanisms.
-
+#### Data Access Instructions
+0. **Navigate to TranSynergy root**
+   ```bash
+   cd external/drug_combination
+   ```
 1. **Download synergy scores** (drug combination efficacy data):
    ```bash
    zenodo_get 10.5281/zenodo.4789936 -o ./data/synergy_score
@@ -101,71 +106,38 @@ Drug data is derived from DrugBank (drug-target interactions), ChEMBL (bioactivi
 3. **Pretrained model weights**:  
    Download from [Google Drive](https://drive.google.com/file/d/1wZ-1KFirBBdy1egMXxBB7Sgx0uQm6Jue/view) and place in `external/drug_combination/data/weights/`.
 
-**Biomining**
+### Biomining
 * Source: DrugComb database, containing 24,145 drug combination pairs tested on five breast cancer cell lines (MCF-7, T-47D, MDA-MB-468, BT-549, MDA-MB-231) with 98 unique drugs.divided into three folds in the outer loop of the nested CV, with one fold serving as the test dataset while the other two folds were further divided into three folds in the inner loop. During each round of the inner loop, two folds were used as a training dataset, while the other fold was used as a validation set in a grid search for the best hyperparameter set.
 * Features: Concatenated inhibition profiles for 13 cancer-related proteins (e.g., EGFR, PIK3CA) per drug pair (26 features) plus cell line genomic features, generated using graph convolutional neural networks from DrugBank and PubChem data.
 * Output: Continuous synergy score (e.g., Bliss score) for each drug pair-cell line combination. data can be found at this location `external/predicting_synergy_nn/data`.
 
-ForBiomining data can be found at this location `external/predicting_synergy_nn/data`.
+For Biomining, the data can be found at the following location: `external/predicting_synergy_nn/data`.
 
 ---
 
 ## Usage
 
 ### Training
-**TranSynergy**:
-
+#### TranSynergy
+*Note: You need to run this from the root directory* <br>
 Run training with different feature types: 
-*Note: You need to run this from the root directory*
 ```bash
 python external/drug_combination/main.py --settings_choice='gene_dependency'  # Uses gene dependency features
 python external/drug_combination/main.py --settings_choice='gene_expression'  # Uses gene expression profiles
 python external/drug_combination/main.py --settings_choice='netexpress'       # Uses network-based expression
 ```
 
-```
-
 Here is how you can check your result: [Transynergy Result](./external/drug_combination/README.md)
 
-**Biomining Neural Network**:
-- K-fold Cross Validation
-The data is split up into 3 folds. You can choose which to run on using the `--folds` argument, and the script will 
-report the final CV scores.
+#### Biomining Neural Network
 
-```bash
-python cli/run_k_fold_cross_validation.py --folds 1,2,3 --config configs/base.yaml
-```
-
-- Hyperparameter Search
-
-```bash
-python cli/run_grid_search.py --folds 1,2,3 --splits 1,2,3 --config configs/grid.yaml
-```
-
-- Final model training
-```bash
-python cli/train_model.py --config configs/base.yaml
-```
-
----
-
-### Hyperparameter Tuning
-
-Hyperparameter tuning is performed using a grid search script (hyperparameter.py) with a configuration file (grid.yml), optimizing parameters such as learning rates ([1e-5, 5e-5, 1e-4, 5e-4]), dropout rates ([0.3, 0.5]), and batch sizes ([32, 64, 100]) across ten folds to ensure robust synergy predictions. This dataset enables biomining of critical protein targets driving drug synergy in breast cancer treatment, with Integrated Gradients used to interpret deep neural network predictions by attributing synergy scores to input features. You can do hyperparameter tuninh using the below script.
-
-Run grid search for hyperparameter optimization:
-```bash
-python -m src.training.hyperparameter --config configs/grid.yaml
-```
-For multiple folds and splits:
-```bash
-python cli/run_grid_search.py --folds 1,2,3 --splits 1,2,3 --config configs/grid.yaml
-```
+Navigate to the [Biomining Repo Root](./external/predicting_synergy_nn) (all code should be run from there) and read the [Biomining README](./external/predicting_synergy_nn/README.md).
 
 ---
 
 ## Data Leakage
 At the start of the project, data leakage checks were conducted for both Biomining Neural Network and TranSynergy submodules to ensure robust model performance and prevent overfitting. These checks confirmed that training, validation, and test sets were properly separated, free from unintended overlaps or biases, and any identified issues were resolved.
+You can find the relevant scripts under [./data_leakage_analysis](./data_leakage_analysis)
 
 - **Biomining Neural Network**:  
   - Checks for **correlation of data** to identify redundant or highly correlated features that could lead to leakage.  
@@ -187,28 +159,23 @@ cd data_leakage_analysis/biomining/validation && python check_dataset_structure.
 ---
 
 ## Baseline:
-We implemented traditional machine learning models in main.py and traditional_ml.py for drug synergy prediction in breast cancer. The baseline models used for benchmark are **CatBoost, Random Forest, SVM, Decision Tree, Ridge Regression, and k-NN** for deep learning approaches. The main.py script supports two modes: TranSynergy (using a fixed train-validation-test split with test fold 4 and evaluation fold 0) and Biomining (using nested cross-validation with inner folds 1–3 on outer fold 1). The traditional_ml.py script trains these models by iterating over a parameter grid defined in its get_model method (e.g., learning rates, tree depth), performing up to 15 iterations with a 60-second timeout per model for efficient fitting. Performance is evaluated using mean squared error, Pearson, and Spearman correlations, logged via Weights & Biases..
+We implemented traditional machine learning models for drug synergy prediction, in order to validate the Deep Learning apporaches. The baseline models used for benchmark are **CatBoost, Random Forest, SVM, Decision Tree, Ridge Regression, and k-NN**. The main.py script supports two modes: TranSynergy (using a fixed train-validation-test split with test fold 4 and evaluation fold 0) and Biomining (using nested cross-validation with inner folds 1–3 on outer fold 1). The traditional_ml.py script trains these models by iterating over a parameter grid defined in its get_model method (e.g., learning rates, tree depth), performing up to 15 iterations with a 60-second timeout per model for efficient fitting. Performance is evaluated using mean squared error, Pearson, and Spearman correlations, logged via Weights & Biases..
 
 ### Process Overview
 Baseline models are trained by iterating over a parameter grid defined in `baselines/traditional_ml.py` (see `get_model` method)
 
 To replicate baseline results:
-1. Install dependencies for both `drug_combination` and `predicting_synergy_nn` projects.
-2. Install baseline-specific dependencies:
-   ```bash
-   pip install -r baselines/requirements.txt
-   ```
-3. Run one of the following:
+#### Running all baselines
    ```bash
    python -m baselines.main --mode transynergy --n_iter 15 --timeout 60  # For TranSynergy
    python -m baselines.main --mode biomining --n_iter 15 --timeout 60    # For Biomining
    ```
-4. To train a specific model (e.g., CatBoost):
+#### Running a specific model (e.g CatBoost)
    ```bash
    python -m baselines.main --mode transynergy --n_iter 100 --timeout 600 --model catboost
    ```
 
-You can check more about result table and summary here : [Baseline Results](./baselines/BASELINES.md)
+You can check more about result table and summary here: [Baseline Results](./baselines/BASELINES.md)
 
 ---
 
@@ -235,7 +202,11 @@ This section describes how to generate explanations for the drug synergy models 
 To download the pretrained model checkpoints required for running Integrated Gradients [file](https://drive.google.com/drive/folders/1Xk0onniJZI51SM-d1crSXWr7O0wwAJ5w?usp=sharing) and use this path to check the results of all meathods : `explainability\notebooks`.
 
 
-**Running Explanations (Example)**:
+### Running Explanation Methods
+The CLI interface entrypoint for XAI methods is the `explainability.main` module. <br>
+Supported arguments for `--model` are `[biomining, transynergy]` <br>
+Supported arguments for `--method` are `[anchors, activation_max, lrp, integrated_gradients, shap]` <br>
+Examples:
 ```bash
 python -m explainability.main --model biomining --method activation_max
 python -m explainability.main --model transynergy --method integrated_gradients
