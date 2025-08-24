@@ -191,7 +191,7 @@ This section describes how to generate explanations for the drug synergy models 
   A **model-specific** technique that generates synthetic input samples which maximize or minimize the activation of a particular output neuron. By optimizing the input space, we can visualize what kinds of patterns lead the model to predict strong synergy or antagonism. This method is useful for **understanding what the model has learned**, and is applicable to both TranSynergy and Biomining models.
 
 - **Anchors**:  
-  A **model-agnostic** technique that produces **IF-THEN rules** to explain a specific prediction. It identifies a set of key features (anchors) such that, when they are present, the model’s output is almost always the same. Anchors provide **high-precision, human-interpretable explanations** and are especially useful when decision stability is important. Due to computational cost, Anchors are currently used only with the Biomining model.
+  A **model-agnostic** technique that produces **IF-THEN rules** to explain a specific prediction. It identifies a set of key features (anchors) such that, when they are present, the model’s output is almost always the same. Anchors provide **high-precision, human-interpretable explanations** and are especially useful when decision stability is important. Due to computational cost, Anchors are currently used only with the Biomining model and wasn't further analysed.
 
 - **SHAP (SHapley Additive exPlanations)**:  
   A popular **model-agnostic** method based on cooperative game theory. SHAP assigns each feature an importance value—its **Shapley value**—representing how much it contributes to the prediction compared to a baseline. SHAP is valuable for both **global** and **local** interpretability and has been applied to both TranSynergy and Biomining.
@@ -199,7 +199,12 @@ This section describes how to generate explanations for the drug synergy models 
 - **Integrated Gradients**:  
   A **model-specific** technique designed for differentiable models like neural networks. It computes the gradient of the model’s output with respect to the input features, integrated over a straight-line path from a baseline (e.g., all zeros) to the actual input. Integrated Gradients provide **attribution scores** that highlight the relative importance of each feature in driving the prediction. Applicable to both TranSynergy and Biomining models.
 
-To download the pretrained model checkpoints required for running Integrated Gradients [file](https://drive.google.com/drive/folders/1Xk0onniJZI51SM-d1crSXWr7O0wwAJ5w?usp=sharing) and use this path to check the results of all meathods : `explainability\notebooks`.
+- **GSEA**:
+   A model-agnostic analysis method that interprets feature attributions from SHAP in terms of biological pathways or gene sets. Instead of examining single genes in isolation, GSEA identifies whether groups of genes that share common biological functions are collectively enriched among the most important features driving a model’s prediction. This helps translate raw feature importance into biologically meaningful insights, making the explanations more actionable in a biomedical context.
+
+Use this path to check the results of all methods : `explainability\notebooks`. To replicate, some large files will need to be downloaded as they could't be uploaded directly to github. Check below.
+
+To download the pretrained model checkpoints required for running Integrated Gradients [file](https://drive.google.com/drive/folders/1Xk0onniJZI51SM-d1crSXWr7O0wwAJ5w?usp=sharing).
 
 
 ### Running Explanation Methods
