@@ -1,30 +1,74 @@
 import os
-from typing import Tuple, Literal
+from typing import Tuple
 import numpy as np
 import pandas as pd
 import torch
 from torch.utils.data import DataLoader, TensorDataset, Dataset
 from sklearn.preprocessing import StandardScaler
+from typing import Literal
+
+TARGET_COL = 'ZIP'
+METADATA_COLS = ['Bliss', 'DRUG1', 'DRUG2', 'CELL_LINE']
+CELL_LINE_COLS = ['GATA3', 'NF1', 'NF2', 'P53', 'PI3K', 'PTEN', 'RAS']
+
+def _load_raw_train_data_for_fold(datapath: str, fold: int) -> pd.DataFrame:
+    path = os.path.join(datapath, f'fold{fold}/fold{fold}_alltrain.csv')
+    return pd.read_csv(path, header=0)
+
+def _load_raw_test_data_for_fold(datapath: str, fold: int) -> pd.DataFrame:
+    path = os.path.join(datapath, f'fold{fold}/fold{fold}_test.csv')
+    return pd.read_csv(path, header=0)
 
 
-def load_data(dir_path, fold, target='ZIP', batch=100):
-    train = pd.read_csv(os.path.join(dir_path, f'fold{fold}/fold{fold}_alltrain.csv'), header=0)
-    test = pd.read_csv(os.path.join(dir_path, f'fold{fold}/fold{fold}_test.csv'), header=0)
+
+
+def load_data(datapath: str, fold: Literal[1, 2, 3], cell_line_encoding: Literal['OHE', 'ordinal'] | None, batch: int = 100):
+    # Load raw data
+    if int(fold) in [1, 2, 3]:
+        train_df = _load_raw_train_data_for_fold(datapath, fold)
+        test_df = _load_raw_test_data_for_fold(datapath, fold)
+    else:
+        raise ValueError(f"Invalid argument for {fold=}. Please use 1, 2, or 3.")
+
+    # Shuffle
+    train_df = train_df.sample(frac=1)
+    test_df = test_df.sample(frac=1)
+
+    # Cell line encoding - Fixed in this project: previously 0: no effect 1: negative effect 2:positive effect - which is an incoreect method of encoding.
+    if cell_line_encoding == 'ordinal':
+        remap = {0: 0, 1: -1, 2: 1}
+        train_df[CELL_LINE_COLS] = train_df[CELL_LINE_COLS].replace(remap)
+        test_df[CELL_LINE_COLS] = test_df[CELL_LINE_COLS].replace(remap)
+    elif cell_line_encoding == 'OHE':
+        # combine train and test data to ensure consistent one-hot encoding
+        combined = pd.concat([train_df, test_df], keys=["train", "test"])
+        # OHE (i.e. dummy!)
+        combined = pd.get_dummies(combined, columns=CELL_LINE_COLS, drop_first=True)
+        # split the data back into train and test
+        train_df = combined.xs("train")
+        test_df = combined.xs("test")
+    elif cell_line_encoding is None:
+        pass
+    else:
+        raise ValueError(f"Invalid argument for {cell_line_encoding=}. Please use 'OHE', 'ordinal', or None.")
+
+    # Column filtering
+    non_feature_cols = METADATA_COLS + [TARGET_COL]
+    feature_cols = [c for c in train_df.columns if c not in non_feature_cols]
+
+    x_tr = train_df.loc[:, feature_cols].astype(np.float32).values
+    y_tr = train_df[TARGET_COL].values.reshape(-1, 1)
     
-    train = train.sample(frac=1)
-    test = test.sample(frac=1)
-    
-    x_tr = train.iloc[:, 0:33].values
-    y_tr = train[target].values.reshape(-1, 1)
-    
-    x_ts = test.iloc[:, 0:33].values
-    y_ts = test[target].values.reshape(-1, 1)
-    
+    x_ts = test_df.loc[:, feature_cols].astype(np.float32).values
+    y_ts = test_df[TARGET_COL].values.reshape(-1, 1)
+
+    # Scaling
     sc = StandardScaler()
     sc.fit(y_tr)
     y_tr = sc.transform(y_tr)
     y_ts = sc.transform(y_ts)
-    
+
+    # Torch stuff
     dev = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
     x_tr_t = torch.FloatTensor(x_tr).to(dev)

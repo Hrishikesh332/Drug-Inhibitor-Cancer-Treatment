@@ -32,18 +32,15 @@ def load_transynergy_data(split: Literal['train', 'test'] = 'train'):
         'eval1': partition[3],
         'eval2': partition[4]
     }
-
+    
     X = X_df.to_numpy()
     std_scaler.fit(Y[partition_indices['train']])
     Y = std_scaler.transform(Y)
+    
     X_res = X[partition_indices[split]]
     Y_res = Y[partition_indices[split]]
-    
-    X_res_perturbed = np.concatenate((X_res[:, 2402:4804], X_res[:, 0:2402], X_res[:, 4804:]), axis=1)
-    X_final = np.concatenate((X_res, X_res_perturbed), axis=0)
-    Y_final = np.concatenate((Y_res, Y_res), axis=0)
-    
-    return X_final, Y_final
+
+    return X_res, Y_res
 
 def load_transynergy_cell_line_data(split: Literal['train', 'test'] = 'train'):
     """
@@ -92,8 +89,8 @@ def load_transynergy_drug_names(split: Literal['train', 'test'] = 'train'):
         split_indices = partition_indices[split]
     
     handler = trans_synergy.data.trans_synergy_data.SynergyDataReader
-    cell_lines = handler.get_synergy_data_drug_names_by_indices(split_indices) 
-    return  cell_lines
+    drug_a, drug_b = handler.get_synergy_data_drug_names_by_indices(split_indices) 
+    return drug_a, drug_b
 
 
 def load_biomining_data(split: Literal['train', 'test'] = 'train'):

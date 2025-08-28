@@ -20,7 +20,7 @@ dependencies = [
   "numpy==1.24.4",
   "tqdm==4.67.1",
   "zenodo-get==1.6.1",
-  "wandb==0.19.10",
+  "wandb==0.19.11",
   "shap==0.44.1" ,
   "rdkit==2024.3.5",
   "pubchempy==1.0.4",
@@ -44,6 +44,6 @@ dev = [
 
 [tool.setuptools.packages.find]
 where = ["."]  # list of folders that contain the packages (["."] by default)
-include = ["trans_synergy"]  # package names should match these glob patterns (["*"] by default)
+include = ["trans_synergy", "trans_synergy.*"] # package names should match these glob patterns (["*"] by default)
 exclude = []  # exclude packages matching these glob patterns (empty by default)
 namespaces = false  # to disable scanning PEP 420 namespaces (true by default)

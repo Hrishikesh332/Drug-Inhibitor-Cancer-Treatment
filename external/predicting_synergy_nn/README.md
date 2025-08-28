@@ -1,4 +1,6 @@
-# Biomining folder structure 
+# Biomining project
+
+## Folder structure
 
 ```
 predicting_synergy_nn/
@@ -27,10 +29,11 @@ predicting_synergy_nn/
 │       └── hyperparameter.py
 ├── configs/
 │   ├── base.yaml      
-│   └── grid.yaml        
-├── scripts/
-│   ├── run_training.py       
-│   └── run_grid_search.py    
+│   ├── grid.yaml      
+│   └── cv.yaml   
+├── cli/
+│   ├── run_grid_search.py       
+│   └── run_k_fold_cross_validation.py    
 └── outputs/                
     ├── models/               # Saved models
     ├── logs/                 
@@ -42,7 +45,7 @@ predicting_synergy_nn/
 
 To set up the virtual environment and install dependencies
 
-1. **Create and activate a conda environment**:
+1. **Create and activate a conda environment (if not yet existing)**:
    ```bash
    conda create -n biomining python=3.11
    conda activate biomining
@@ -53,94 +56,38 @@ To set up the virtual environment and install dependencies
    ```
 
 ## Usage
+Before running any command, set `PYTHONPATH=src`.
+The data is split up into 3 train/test folds by the authors.
 
-### 1 Running Training for a Specific Fold
-
-```bash
-python -m src.training.trainer --config configs/base.yaml
-```
-
-Make sure to update the `base.yaml` file with the correct configuration for specific fold.
-
-### 2 Running Training for Multiple Folds
+### 1 Running k-fold Cross Validation
+The data is split up into 3 folds. You can choose which to run on using the `--folds` argument, and the script will 
+report the final CV scores.
 
 ```bash
-python scripts/run_training.py --folds 1,2,3 --config configs/base.yaml
+PYTHONPATH=src python cli/run_k_fold_cross_validation.py --folds 1,2,3 --config configs/base.yaml
 ```
 
-### 3 Hyperparameter Search
+### 2 Hyperparameter Search
 
 ```bash
-python -m src.training.hyperparameter --config configs/grid.yaml
+PYTHONPATH=src python cli/run_grid_search.py --folds 1,2,3 --splits 1,2,3 --config configs/grid.yaml
 ```
 
-### 4 Running Grid Search for Multiple Folds and Splits
-
-
+### 3 Training the Final Model
+Trains model on one fold.
 ```bash
-python scripts/run_grid_search.py --folds 1,2,3 --splits 1,2,3 --config configs/grid.yaml
+PYTHONPATH=src python cli/train_model.py --config configs/base.yaml --fold 1
 ```
-
-### 5 Run training/grid search
-
-# For Training
-python scripts/run_training.py --folds 1,2,3 --config config/cv.yaml
-
-# For Grid search
-python scripts/run_grid_search.py --folds 1,2,3 --splits 1,2,3 --config configs/cv.yaml
-
-### In cv.yaml
-
-# Random CV (default)
-cv_strategy: random
-
-# Leave-cell-line-out CV  
-cv_strategy: cell_line
-cell_line_col: CELL_LINE
-
-# Leave-drug-out CV (True Drug Out: holds out any row where the drug appears in DRUG1 or DRUG2)
-cv_strategy: drug
-# drug_col is ignored for true drug out; both DRUG1 and DRUG2 are used automatically
-
-## Cross-Validation
-
-This project supports three types of cross-validation for model evaluation:
-
-- **Random CV** - Randomly splits the data into train/validation splits.
-- **Cell line out CV** - Holds out all samples from specific cell lines in each split, testing generalization to unseen cell lines.
-- **Drug out CV** - Holds out all samples containing a specific drug in either the DRUG1 or DRUG2 column in each split, testing generalization to unseen drugs in any position of the combination.
-
-### Running Cross-Validation
-
-To run cross-validation (for fold 2, with 3 splits):
-
-```bash
-python scripts/run_cv.py --config configs/cv.yaml
-```
-
-- Edit `cv.yaml` to set the desired strategy and columns:
-
-```yaml
-# Random CV (default)
-cv_strategy: random
-
-# Leave-cell-line-out CV  
-cv_strategy: cell_line
-cell_line_col: CELL_LINE
-
-# Leave-drug-out CV (True Drug Out: holds out any row where the drug appears in DRUG1 or DRUG2)
-cv_strategy: drug
-# drug_col is ignored for true drug out; both DRUG1 and DRUG2 are used automatically
-```
-
-- The code will print validation metrics for each split and the mean across splits.
-- For full experiment tracking, set `use_wb: true` in your config to enable Weights & Biases logging.
-
-### Notes
-- The cross-validation code is implemented in `src/training/cross_valid.py`.
-- Only fold 2 is currently supported for cross-validation.
-- For true drug out, the grouping is done on the set of all drugs in each row (both DRUG1 and DRUG2).
 
 ## Configuration Files
 
 * `configs/base.yaml`
+This file contains the configuration for the model training, including the model architecture, batch size, learning rate, etc
+
+* `configs/grid.yaml`
+This file contains the configuration for hyperparameter tuning, including the parameters to search over during grid search.
+
+*  `configs/cv.yaml`
+TODO: add description after implementing
+
+
