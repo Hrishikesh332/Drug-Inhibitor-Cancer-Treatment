@@ -57,6 +57,7 @@ To set up the virtual environment and install dependencies
 
 ## Usage
 Before running any command, set `PYTHONPATH=src`.
+The data is split up into 3 train/test folds by the authors.
 
 ### 1 Running k-fold Cross Validation
 The data is split up into 3 folds. You can choose which to run on using the `--folds` argument, and the script will 
@@ -73,7 +74,7 @@ PYTHONPATH=src python cli/run_grid_search.py --folds 1,2,3 --splits 1,2,3 --conf
 ```
 
 ### 3 Training the Final Model
-Merges the folds and trains model on one fold.
+Trains model on one fold.
 ```bash
 PYTHONPATH=src python cli/train_model.py --config configs/base.yaml --fold 1
 ```

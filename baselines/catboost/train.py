@@ -101,7 +101,7 @@ def train_and_eval_transynergy_catboost():
 
 
 def train_eval_and_save_transynergy_catboost(
-    model_output_path: str = "baselines/catboost/models/best_catboost_transynergy_af_pandas.pkl",
+    model_output_path: str = "baselines/catboost/models/best_catboost_transynergy.pkl",
 ):
     model = train_and_eval_transynergy_catboost()
     joblib.dump(model, model_output_path)
