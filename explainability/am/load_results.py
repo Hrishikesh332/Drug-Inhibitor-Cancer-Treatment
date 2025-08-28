@@ -14,9 +14,9 @@ MINIMAXIS = ["max", "min"]
 def load_results(
     paper: Literal["biomining", "transynergy"],
     base_dir_path: str = "./explainability/am",
-    transynergy_genes_csv_path: (
+    transynergy_features_parquet_path: (
         str | None
-    ) = "../external/drug_combination/data/genes/genes_2401_df.csv",
+    ) = "../external/drug_combination/data/final_X.parquet",
 ) -> pd.DataFrame:
     """
     Load and aggregate feature importance results for a given paper from disk.
@@ -32,7 +32,8 @@ def load_results(
     if not base_path.exists():
         raise ValueError(f"{base_path=} doesn't exist")
     feature_names = ExplainationConfig(
-        paper=paper, transynergy_gene_csv_path=transynergy_genes_csv_path
+        paper=paper, transynergy_features_parquet_path = transynergy_features_parquet_path
+
     ).feature_names
 
     data = []

@@ -1,6 +1,7 @@
 # Drug-Inhibitor-Cancer-Treatment
 
-This project leverages deep learning to explore drug combination therapies for cancer treatment, focusing on data prepration, prediction modeling and explainaiblity. It integrates submodules like **TranSynergy** and **Biomining**.
+This project leverages deep learning and XAI to explore drug combination therapies for cancer treatment. 
+It builds upon previous modelling approaches, namely: **TranSynergy** and **Biomining**.
 
 ## Table of Contents
 - [Motivation](#motivation)
@@ -23,6 +24,9 @@ This project leverages deep learning to explore drug combination therapies for c
 
 ## Motivation
 Tumors often develop resistance to single-drug therapies, limiting treatment efficiency. This project aims to identify effective drug combinations using machine learning models and XAI methods.
+The idea is to build a model that predicts the synergistic effect of two drugs when battling cancer in a particular cell line. Then by using XAI techniques, we can 
+extract information about what patterns the model has learned. These patterns may uncover previously unknown information, and reveal insights for further research.
+
 ## Submodules
 
 ### TranSynergy
@@ -78,7 +82,7 @@ Some example installations:
    pip install -r baselines/requirements.txt  
    ```
    
-5. **Install 'Explainability' requirements:
+5. **Install 'Explainability' requirements**:
    ```bash
    pip install -r explainability/requirements.txt  
    ```
@@ -117,8 +121,7 @@ For Biomining, the data can be found at the following location: `external/predic
 
 ## Usage
 
-### Training
-#### TranSynergy
+### TranSynergy
 *Note: You need to run this from the root directory* <br>
 Run training with different feature types: 
 ```bash
@@ -129,7 +132,7 @@ python external/drug_combination/main.py --settings_choice='netexpress'       # 
 
 Here is how you can check your result: [Transynergy Result](./external/drug_combination/README.md)
 
-#### Biomining Neural Network
+### Biomining Neural Network
 
 Navigate to the [Biomining Repo Root](./external/predicting_synergy_nn) (all code should be run from there) and read the [Biomining README](./external/predicting_synergy_nn/README.md).
 
@@ -162,7 +165,10 @@ cd data_leakage_analysis/biomining/validation && python check_dataset_structure.
 We implemented traditional machine learning models for drug synergy prediction, in order to validate the Deep Learning apporaches. The baseline models used for benchmark are **CatBoost, Random Forest, SVM, Decision Tree, Ridge Regression, and k-NN**. The main.py script supports two modes: TranSynergy (using a fixed train-validation-test split with test fold 4 and evaluation fold 0) and Biomining (using nested cross-validation with inner folds 1–3 on outer fold 1). The traditional_ml.py script trains these models by iterating over a parameter grid defined in its get_model method (e.g., learning rates, tree depth), performing up to 15 iterations with a 60-second timeout per model for efficient fitting. Performance is evaluated using mean squared error, Pearson, and Spearman correlations, logged via Weights & Biases..
 
 ### Process Overview
-Baseline models are trained by iterating over a parameter grid defined in `baselines/traditional_ml.py` (see `get_model` method)
+Baseline models are trained by iterating over a parameter grid defined in `baselines/traditional_ml.py` (see `get_model` method).
+The n_iter parameter determines the number of hyperparameter search iterations. The timeout parameter determines the timeout (maximum possible time) for training a model.
+The mode parameter determines which paper/data to use (transynergy | biomining).  <br>
+The training is tracked via **weights and biases**. Follow the wandb URL outputted in stdout for training details.
 
 To replicate baseline results:
 #### Running all baselines
@@ -211,7 +217,10 @@ To download the pretrained model checkpoints required for running Integrated Gra
 The CLI interface entrypoint for XAI methods is the `explainability.main` module. <br>
 Supported arguments for `--model` are `[biomining, transynergy]` <br>
 Supported arguments for `--method` are `[anchors, activation_max, lrp, integrated_gradients, shap]` <br>
-Examples:
+Every method will save results in its own subdirectory under `explainability`, e.g `explainability/shapley/results`. <br>
+Under `explainability/notebooks` you can find jupyter notebooks which interact with the explanation results.
+
+**Examples:**
 ```bash
 python -m explainability.main --model biomining --method activation_max
 python -m explainability.main --model transynergy --method integrated_gradients
@@ -221,6 +230,8 @@ python -m explainability.main --model transynergy --method integrated_gradients
 ```bash
 python -m explainability.shapley.gsea --paper biomining
 ```
+
+**To inspect CatBoost feature importances and feature interaction strength, use the notebook `explainability/catboost/catboost_xai.ipynb`.**
 
 ### ⚠️ **Caution: Large File Notice** ⚠️  
 Some result files are too large to upload via Git. For those, please use the provided Google Drive links instead.
