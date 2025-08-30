@@ -146,7 +146,7 @@ if __name__ == "__main__":
 
     for lib in [
         "MSigDB_Hallmark_2020",
-        "Reactome_2016",
+        "Reactome_2022",
         "GO_Biological_Process_2021",
     ]:
         print(f"\nRunning GSEA with gene set library: {lib} for paper {paper}")

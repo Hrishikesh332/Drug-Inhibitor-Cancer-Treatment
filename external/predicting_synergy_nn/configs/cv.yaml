@@ -1,30 +1,40 @@
+# Cross-Validation Configuration for Drug Synergy Prediction
 
+# Model Architecture
 arch: std
 batch: 100
 lr: 0.0001
 epochs: 8000
 drop: 0.3
 log_every: 10
+
 use_wb: true
 wb_proj: synergy
-data_dir: external/predicting_synergy_nn/data
 
-# Cell line out CV
-# cv_strategy: cell_line
-# cell_line_col: CELL_LINE
+# Data Configuration
+data_dir: data
+feature_columns: '0:33'  # Protein inhibition profiles (columns 0-32)
+target_column: 'ZIP'     
 
-feature_columns: '0:33' 
-target_column: 'ZIP'
+# Cross-Validation Configuration
+n_cv_splits: 3          # Number of CV splits within fold2
+random_state: 42       
 
+# Cross-Validation Strategy
+# Choose one of the following strategies -
 
-# Random CV 
-# cv_strategy: random
-# cell_line_col: null
-#
-# Cell line out CV
-# cv_strategy: cell_line
-# cell_line_col: CELL_LINE
-#
-# Drug out CV 
-cv_strategy: drug
+# Random CV - Standard random splitting of data
+cv_strategy: random
 cell_line_col: null
+drug_col: null
+
+# Cell line out CV - Ensures no cell line appears in both train and validation
+# cv_strategy: cell_line
+# cell_line_col: CELL_LINE
+# drug_col: null
+
+# Drug out CV - Ensures no drug combination appears in both train and validation
+# cv_strategy: drug
+# cell_line_col: null
+# drug_col: null
+

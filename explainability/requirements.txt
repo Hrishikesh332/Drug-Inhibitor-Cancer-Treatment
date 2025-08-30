@@ -3,3 +3,5 @@ zennit==0.5.1
 lxt==2.0
 captum==0.8.0
 gseapy==1.1.9
+shap
+wandb

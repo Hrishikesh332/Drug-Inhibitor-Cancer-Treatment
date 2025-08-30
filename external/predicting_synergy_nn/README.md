@@ -88,6 +88,35 @@ This file contains the configuration for the model training, including the model
 This file contains the configuration for hyperparameter tuning, including the parameters to search over during grid search.
 
 *  `configs/cv.yaml`
-TODO: add description after implementing
+Cross-validation configuration for fold2 data only (fold1/fold3 contain identical data). Supports three strategies -
+
+- **Random**: Standard KFold splitting
+- **Cell Line Out**: GroupKFold by CELL_LINE (no cell line overlap)
+- **Drug Out**: GroupKFold by drug combinations (no drug pair overlap)
+
+**Quick Usage**:
+```bash
+cd external/predicting_synergy_nn
+
+# Run random CV (default)
+python src/training/cross_valid.py
+
+# Run cell line out CV
+python src/training/cross_valid.py --strategy cell_line
+
+# Run drug out CV  
+python src/training/cross_valid.py --strategy drug
+
+# Run with custom number of splits
+python src/training/cross_valid.py --strategy drug --splits 5
+
+# Run with custom config file
+python src/training/cross_valid.py --strategy random --config configs/cv.yaml
+```
+
+**Strategy Configuration** -
+- Edit `cv_strategy` in `cv.yaml`: `random`, `cell_line`, or `drug`
+- For cell_line: set `cell_line_col: CELL_LINE`
+- For drug: ensure `drug_col: null` (uses default DRUG1/DRUG2 columns)
 
 
