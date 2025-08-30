@@ -246,13 +246,13 @@ Paste the downloaded file under:
 Paste the downloaded file under:  
 `explainability/ig/results`
 
-🔗 [Download from Google Drive](https://drive.google.com/file/d/1ftC-7CVpCgf-bFOTiVH6OKr3_t1sj7BU/view?usp=drive_link)
+🔗 [Download from Google Drive](https://drive.google.com/file/d/1ftC-7CVpCgf-bFOTiVH6OKr3_t1sj7BU/view?usp=sharing)
 
 **TransSynergy SHAP Attributions**  
 Paste the downloaded file under:  
 `explainability/shapley/results/transynergy`
 
-🔗 [Download from Google Drive](https://drive.google.com/file/d/1faQvvnRxIAXBC7t6J4GRz3LRLKo0RUb0/view?usp=drive_link)
+🔗 [Download from Google Drive](https://drive.google.com/file/d/1faQvvnRxIAXBC7t6J4GRz3LRLKo0RUb0/view?usp=sharing)
 
 ---
 
