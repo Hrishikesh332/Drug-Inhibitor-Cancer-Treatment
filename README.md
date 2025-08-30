@@ -242,6 +242,17 @@ Paste the downloaded file under:
 
 🔗 [Download from Google Drive](https://drive.google.com/file/d/15CLzOmeJk0-FpqtSNumrjJMNG1JBFKDq/view?usp=sharing)
 
+**TransSynergy IG Attributions**  
+Paste the downloaded file under:  
+`explainability/ig/results`
+
+🔗 [Download from Google Drive](https://drive.google.com/file/d/1ftC-7CVpCgf-bFOTiVH6OKr3_t1sj7BU/view?usp=drive_link)
+
+**TransSynergy SHAP Attributions**  
+Paste the downloaded file under:  
+`explainability/shapley/results/transynergy`
+
+🔗 [Download from Google Drive](https://drive.google.com/file/d/1faQvvnRxIAXBC7t6J4GRz3LRLKo0RUb0/view?usp=drive_link)
 
 ---
 
