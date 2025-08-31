@@ -240,7 +240,7 @@ Some result files are too large to upload via Git. For those, please use the pro
 Paste the downloaded file under:  
 `explainability/lrp/results/transynergy_subsample_False`
 
-🔗 [Download from Google Drive](https://drive.google.com/file/d/15CLzOmeJk0-FpqtSNumrjJMNG1JBFKDq/view?usp=sharing)
+🔗 [Download from Google Drive](https://drive.google.com/drive/folders/1Xk0onniJZI51SM-d1crSXWr7O0wwAJ5w?usp=sharing)
 
 **TransSynergy IG Attributions**  
 Paste the downloaded file under:  
